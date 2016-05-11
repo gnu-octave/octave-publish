@@ -1,17 +1,21 @@
+## Copyright (C) 2016 Kai T. Ohlhus <k.ohlhus@gmail.com>
 ## Copyright (C) 2010 Fotios Kasolis <fotios.kasolis@gmail.com>
 ##
-## This program is free software; you can redistribute it and/or modify it under
-## the terms of the GNU General Public License as published by the Free Software
-## Foundation; either version 3 of the License, or (at your option) any later
-## version.
+## This file is part of Octave.
 ##
-## This program is distributed in the hope that it will be useful, but WITHOUT
-## ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-## FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
-## details.
+## Octave is free software; you can redistribute it and/or modify it
+## under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 3 of the License, or (at
+## your option) any later version.
 ##
-## You should have received a copy of the GNU General Public License along with
-## this program; if not, see <http://www.gnu.org/licenses/>.
+## Octave is distributed in the hope that it will be useful, but
+## WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+## General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with Octave; see the file COPYING.  If not, see
+## <http://www.gnu.org/licenses/>.
 
 ## -*- texinfo -*-
 ## @deftypefn {Function File} {} publish (@var{filename})
@@ -111,80 +115,174 @@
 ## @end example
 ## @end deftypefn
 
-function publish (file_name, varargin)
+function out_file = publish (file, varargin)
+  narginchk (1, Inf);
+  nargoutchk (0, 1);
 
-  if ((nargin < 1) || (rem (numel (varargin), 2) != 0))
-    print_usage ();
+  if (exist (file, "file") != 2)
+    error ("publish: FILE does not exist.");
   endif
 
-  if (!strcmp (file_name(end-1:end), ".m"))
-    ifile = strcat (file_name, ".m");
-    ofile = strcat (file_name, ".tex");
+  ## Check file extension to be an Octave script
+  [~,~,file_ext] = fileparts (file);
+  if (!strcmp (file_ext, ".m"))
+    error ("publish: Only Octave scripts can be published.");
+  endif
+
+  ## Get structure with necessary options
+  options = struct ();
+  if (numel (varargin) == 1)
+    ## Call: publish (file, format)
+    if (ischar (varargin{1}))
+      options.format = varargin{1};
+    ## Call: publish (file, options)
+    elseif (isstruct (varargin{1}))
+      options = varargin{1};
+    else
+      error ("publish: Invalid second argument.");
+    endif
+  ## Call: publish (file, Name1, Value1, Name2, Value2, ...)
+  elseif ((rem (numel (varargin), 2) == 0) ...
+          && (all (cellfun (@ischar, varargin))))
+    for i = 1:2:numel(varargin)
+      setfield (options, varargin{i}, varargin{i + 1});
+    endfor
   else
-    ifile = file_name;
-    ofile = strcat (file_name(1:end-1), "tex");
+    error ("publish: Invalid or inappropriate arguments.");
   endif
 
-  if (exist (ifile, "file") != 2)
-    error ("File %s does not exist.", ifile);
+  ##
+  ## Validate options struct
+  ##
+
+  ## Options for the output
+  if (! isfield (options, "format"))
+    options.format = "html";
+  else
+    options.format = validatestring (options.format, ...
+      {"html", "doc", "latex", "ppt", "xml", "pdf"});
+    ## TODO: implement remaining formats
+    if (! any (strcmp (options.format, {"html", "latex"})))
+      error ("publish: Output format currently not supported");
+    endif
   endif
 
-  options = set_default (struct ());
-  options = read_options (varargin, "op1", "format imageFormat showCode evalCode", "default", options);
+  if (! isfield (options, "outputDir"))
+    options.outputDir = "";
+  elseif (! ischar (options.outputDir))
+    error ("publish: OUTPUTDIR must be a string");
+  endif
+
+  if (! isfield (options, "stylesheet"))
+    options.stylesheet = "";
+  elseif (! ischar (options.stylesheet))
+    error ("publish: STYLESHEET must be a string");
+  endif
+
+  ## Options for the figures
+  if (! isfield (options, "createThumbnail"))
+    options.createThumbnail = true;
+  elseif ((! isscalar (options.createThumbnail)) ...
+          || (! isbool (options.createThumbnail)))
+    error ("publish: CREATETHUMBNAIL must be TRUE or FALSE");
+  endif
+
+  if (! isfield (options, "figureSnapMethod"))
+    options.figureSnapMethod = "entireGUIWindow";
+  else
+    options.figureSnapMethod = validatestring (options.figureSnapMethod, ...
+      {"entireGUIWindow", "print", "getframe", "entireFigureWindow"});
+    ## TODO: implement
+    warning ("publish: option FIGURESNAPMETHOD currently not supported")
+  endif
+
+  if (! isfield (options, "imageFormat"))
+    switch (options.format)
+      case "latex"
+        options.imageFormat = "epsc2";
+      case "pdf"
+        options.imageFormat = "bmp";
+      otherwise
+        options.imageFormat = "png";
+    endswitch
+  elseif (! ischar (options.imageFormat))
+    error ("publish: IMAGEFORMAT must be a string");
+  else
+    ## check valid imageFormat for chosen format
+    ##   html, latex, and xml accept any imageFormat
+    switch (options.format)
+      case {"doc", "ppt"}
+        options.imageFormat = validatestring (options.imageFormat, ...
+          {"png", "jpg", "bmp", "tiff"});
+      case "pdf"
+        options.imageFormat = validatestring (options.imageFormat, ...
+          {"bmp", "jpg"});
+    endswitch
+  endif
+
+  if (! isfield (options, "maxHeight"))
+    options.maxHeight = [];
+  elseif ((! isscalar (options.maxHeight)) ...
+          || (uint64 (options.maxHeight) == 0))
+    error ("publish: MAXHEIGHT must be a positive integer");
+  else
+    options.maxHeight = uint64 (options.maxHeight);
+  endif
+
+  if (! isfield (options, "maxWidth"))
+    options.maxWidth = [];
+  elseif ((! isscalar (options.maxWidth)) ...
+          || (uint64 (options.maxWidth) == 0))
+    error ("publish: MAXWIDTH must be a positive integer");
+  else
+    options.maxWidth = uint64 (options.maxWidth);
+  endif
+
+  if (! isfield (options, "useNewFigure"))
+    options.useNewFigure = true;
+  elseif (! isbool (options.useNewFigure))
+    error ("publish: USENEWFIGURE must be TRUE or FALSE");
+  endif
+
+  ## Options for the code
+  if (!isfield (options, "evalCode"))
+    options.evalCode = true;
+  elseif ((! isscalar (options.evalCode)) || (! isbool (options.evalCode)))
+    error ("publish: EVALCODE must be TRUE or FALSE");
+  endif
+
+  if (!isfield (options, "catchError"))
+    options.catchError = true;
+  elseif ((! isscalar (options.catchError)) || (! isbool (options.catchError)))
+    error ("publish: CATCHERROR must be TRUE or FALSE");
+  endif
+
+  if (!isfield (options, "codeToEvaluate"))
+    options.codeToEvaluate = "";
+  elseif (! ischar (options.codeToEvaluate))
+    error ("publish: CODETOEVALUTE must be a string");
+  endif
+
+  if (! isfield (options, "maxOutputLines"))
+    options.maxOutputLines = Inf;
+  elseif (! isscalar (options.maxOutputLines))
+    error ("publish: MAXOUTPUTLINES must be an integer >= 0");
+  else
+    options.maxOutputLines = uint64 (options.maxOutputLines);
+  endif
+
+  if (!isfield (options, "showCode"))
+    options.showCode = true;
+  elseif ((! isscalar (options.showCode)) || (! isbool (options.showCode)))
+    error ("publish: SHOWCODE must be TRUE or FALSE");
+  endif
 
   if (strcmpi (options.format, "latex"))
     create_latex (ifile, ofile, options);
   elseif strcmpi(options.format, "html")
-    create_html (ifile, options);
+    create_html (file, options);
   endif
 
-endfunction
-
-function def_options = set_default (options);
-
-  if (!isfield (options, "format"))
-    def_options.format = "latex";
-  elseif (!ischar (options.format))
-    error("Option format must be a string.");
-  else
-    valid_formats={"latex", "html"};
-    validity_test = strcmpi (valid_formats, options.format);
-    if (isempty (find (validity_test)))
-      error ("The supplied format is not currently supported.");
-    else
-      def_options.format = options.format;
-    endif
-  endif
-
-  if (! isfield (options, "imageFormat"))
-    def_options.imageFormat = "pdf";
-  elseif (! ischar(options.imageFormat))
-    error("Option imageFormat must be a string.");
-  else
-    valid_formats = {"pdf", "png", "jpg", "jpeg"};
-    validity_test = strcmpi (valid_formats, options.imageFormat);
-    if (isempty (find (validity_test)))
-      error ("The supplied image format is not available.");
-    else
-      def_options.imageFormat = options.imageFormat;
-    endif
-  endif
-  
-  if (!isfield (options,"showCode"))
-    def_options.showCode = true;
-  elseif (!isbool (options.showCode))
-    error ("Option showCode must be a boolean.");
-  else
-    def_options.showCode = options.showCode;
-  endif
-
-  if (!isfield (options,"evalCode"))
-    def_options.evalCode = true;
-  elseif (!isbool (options.evalCode))
-    error ("Option evalCode must be a boolean.");
-  else
-    def_options.evalCode = options.evalCode;
-  endif
 endfunction
 
 function create_html (ifile, options)
