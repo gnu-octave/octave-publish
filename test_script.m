@@ -16,10 +16,24 @@ disp ("First recognized Octave code after %%")
 ### SECTION TITLE WITHOUT SECTION BREAK
 # DESCRIPTIVE TEXT
 
+%%
+%
+
+##
+#
+
 % some real comment
 x = 0:0.01:2*pi
 
 # some real comment
+y = sin(x)
+
+%%
+
+% some real comment and split code block
+x = 0:0.01:2*pi
+
+# some real comment and split code block
 y = sin(x)
 
 %% Text formatting
@@ -207,3 +221,4 @@ plot (x,y)
 #
 #
 #
+

@@ -277,13 +277,224 @@ function out_file = publish (file, varargin)
     error ("publish: SHOWCODE must be TRUE or FALSE");
   endif
 
+  #{
   if (strcmpi (options.format, "latex"))
     create_latex (ifile, ofile, options);
   elseif strcmpi(options.format, "html")
     create_html (file, options);
   endif
+  #}
+
+  fid = fopen (file, "r");
+  i = 1;
+  m_source{1} = fgetl (fid);
+  while (ischar (m_source{i}))
+    i++;
+    m_source{i} = fgetl (fid);
+  endwhile
+  fclose(fid);
+
+  m_source = cellstr (m_source(1:end-1)); ## No EOL
+  parsed_source = deblank (m_source);
+
+  doc_struct.title = file;
+  doc_struct.intro = "";
+  doc_struct.body = cell ();
+
+  ## Start parsing
+  [parsed_source, doc] = read_doc_title_intro (parsed_source, doc_struct);
+  parsed_source = strip_empty_lines (parsed_source);
+  progress = length (parsed_source);
+  while (! isempty (parsed_source))
+    ## Note: Matlab R2016a treats both as new section heads
+    if (is_head (parsed_source{1}) || is_no_break_head (parsed_source{1}))
+      [parsed_source, doc_struct] = read_paragraph (parsed_source, doc_struct);
+    else
+      [parsed_source, doc_struct] = read_code (parsed_source, doc_struct);
+    endif
+
+    parsed_source = strip_empty_lines (parsed_source);
+
+    ## Stop if no progress happens
+    if (progress == length (parsed_source))
+      error ("No progress, cannot handle\n%s\n", parsed_source{1});
+    else
+      progress = length (parsed_source);
+    endif
+  endwhile
+  out_file = doc_struct;
 
 endfunction
+
+function bool = is_head (line)
+## IS_HEAD Checks line to be a section headline
+bool = (! isempty (line)) ...
+       && any (strncmp (line, {"%%", "##"}, 2)) ...
+       && ((length (line) == 2) || (line(3) == " "));
+endfunction
+
+function bool = is_no_break_head (line)
+## IS_NO_BREAK_HEAD Checks line to be a headline without section break
+bool = (! isempty (line)) ...
+       && any (strncmp (line, {"%%%", "###"}, 3)) ...
+       && ((length (line) == 3) || (line(4) == " "));
+endfunction
+
+function bool = is_paragraph (line)
+## IS_PARAGRAPH Checks line to be a paragraph line
+bool = (! isempty (line)) ...
+       && any (strcmp (line(1), {"%", "#"})) ...
+       && ((length (line) == 1) || (line(2) == " "));
+endfunction
+
+
+
+function [p_source, doc_struct] = read_doc_title_intro (p_source, doc_struct)
+## READ_DOC_TITLE_INTRO Reads the documents title and introduction text into
+##  the document strucure.
+##
+##   p_source is a cellstring vector
+##   doc is a document structure
+##
+## If a document title or introduction text was found, p_source is reduced
+## by the already parsed lines and doc is modified in title and intro
+## accordingly.  Otherwise the input and output arguments are identical.
+##
+
+## First line starting with "##" or "%%",
+## followed by either a blank or end-of-line (no title)
+ntitle = "";
+if (isempty (p_source{1}) || (! is_head (p_source{1})))
+  return;
+elseif (length (p_source{1}) >= 2)
+  ntitle = p_source{1};
+endif
+
+## Following lines are (0..N) intro lines ...
+curr_line = 2;
+while (is_paragraph (p_source{curr_line}))
+  curr_line++;
+endwhile
+nintro = p_source(2:curr_line-1);
+
+## ... and (0..M) blank lines ...
+while (isempty (p_source{curr_line}))
+  curr_line++;
+endwhile
+
+## .. until next section head
+if (! is_head (p_source{curr_line}))
+  return;
+endif
+
+if (! isempty (ntitle))
+  doc_struct.title = ntitle(4:end);
+endif
+for i = 1:length(nintro)
+  if (! isempty (l = nintro{i}))
+    doc_struct.intro = [doc_struct.intro, " ", l(3:end)];
+  endif
+endfor
+p_source(1:curr_line-1) = [];
+endfunction
+
+
+
+function [p_source, doc_struct] = read_paragraph (p_source, doc_struct)
+## READ_PARAGRAPH Reads a paragraph title and text into the document strucure.
+##
+##   p_source is a cellstring vector
+##   doc_struct is a document structure
+##
+## If a paragraph title or text was found, p_source is reduced by the already
+## parsed lines and doc is modified in title and intro accordingly.
+## Otherwise the input and output arguments are identical.
+##
+
+## First line starting with "##" or "%%",
+## followed by either a blank or end-of-line (no title)
+title_str = "";
+if (isempty (p_source{1})
+    || ! (is_head (p_source{1}) || is_no_break_head (p_source{1})))
+  return;
+elseif ((is_head (p_source{1})) && (length (p_source{1}) > 2))
+  title_str = p_source{1};
+  title_str = title_str(4:end);
+elseif ((is_no_break_head (p_source{1})) && (length (p_source{1}) > 3))
+  title_str = p_source{1};
+  title_str = title_str(5:end);
+endif
+
+## Following lines are (0..N) paragraph lines
+curr_line = 2;
+par_str = "";
+while ((curr_line <= length(p_source)) ...
+       && (is_paragraph (l = p_source{curr_line})))
+  l = l(3:end);
+  if (! isempty (l))
+    par_str = [par_str, " ", l];
+  endif
+  curr_line++;
+endwhile
+
+if ((! isempty (title_str)) || (! isempty (par_str)))
+  doc_struct.body{end + 1}.type = "paragraph";
+  doc_struct.body{end}.title = title_str;
+  doc_struct.body{end}.text = strtrim(par_str);
+endif
+
+p_source(1:curr_line-1) = [];
+endfunction
+
+function [p_source] = strip_empty_lines (p_source)
+## STRIP_EMPTY_LINES removes incipient empty lines from p_source
+##
+curr_line = 1;
+while ((curr_line <= length(p_source)) ...
+       && (isempty (p_source{curr_line})))
+  curr_line++;
+endwhile
+p_source(1:curr_line-1) = [];
+endfunction
+
+
+
+function [p_source, doc_struct] = read_code (p_source, doc_struct)
+## READ_CODE Reads a paragraph title and text into the document strucure.
+##
+##   p_source is a cellstring vector
+##   doc_struct is a document structure
+##
+## If code was found, p_source is reduced by the already parsed lines and
+## doc_struct is modified in title and intro accordingly.  Otherwise the input
+## and output arguments are identical.
+##
+
+curr_line = 1;
+while ((curr_line <= length(p_source)) ...
+       && ! is_head (p_source{curr_line}) ...
+       && ! is_no_break_head (p_source{curr_line}))
+  curr_line++;
+endwhile
+
+## Remove trailing blank lines
+blank_lines = curr_line-1;
+while (isempty (p_source{blank_lines}))
+  blank_lines--;
+endwhile
+
+## Extract code to evaluate
+code_str = "";
+for i = 1:blank_lines
+  code_str = [code_str, "\n", p_source{i}];
+endfor
+
+doc_struct.body{end + 1}.type = "code";
+doc_struct.body{end}.code = strtrim(code_str);
+
+p_source(1:curr_line-1) = [];
+endfunction
+
 
 function create_html (ifile, options)
 
