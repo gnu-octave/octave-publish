@@ -1,5 +1,7 @@
 %% Headline
 % Headline description.
+% about some lines and blanks
+
 %%
 
 disp ("First recognized Octave code after %%")
@@ -23,18 +25,28 @@ disp ("First recognized Octave code after %%")
 #
 
 % some real comment
-x = 0:0.01:2*pi
+i = 0:2*pi
 
 # some real comment
-y = sin(x)
+y = sin(i)
 
 %%
+%
 
 % some real comment and split code block
-x = 0:0.01:2*pi
+x = 0:2*pi
 
 # some real comment and split code block
 y = sin(x)
+
+%%
+%
+
+% reusing old values
+y = cos(i)
+
+# some real comment and split code block
+y = cos(x)
 
 %% Text formatting
 % PLAIN TEXT _ITALIC TEXT_ *BOLD TEXT* |MONOSPACED TEXT|
