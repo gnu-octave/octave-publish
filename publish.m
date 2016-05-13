@@ -128,6 +128,7 @@ function out_file = publish (file, varargin)
   if (!strcmp (file_ext, ".m"))
     error ("publish: Only Octave scripts can be published.");
   endif
+  clear file_ext
 
   ## Get structure with necessary options
   options = struct ();
@@ -277,6 +278,78 @@ function out_file = publish (file, varargin)
     error ("publish: SHOWCODE must be TRUE or FALSE");
   endif
 
+  m_source = read_file_to_cellstr (file);
+  parsed_source = deblank (m_source);
+
+  doc_struct.title = file;
+  doc_struct.intro = "";
+  doc_struct.body = cell ();
+  doc_struct.m_source = m_source;
+
+  ##
+  ## Start 1st level parsing
+  ##
+  [parsed_source, doc_struct] = read_doc_head (parsed_source, doc_struct);
+  while (! isempty (parsed_source))
+    [parsed_source, doc_struct] = read_paragraph (parsed_source, doc_struct);
+    [parsed_source, doc_struct] = read_code (parsed_source, doc_struct);
+  endwhile
+  clear parsed_source m_source
+
+  ##
+  ## Start 2nd level parsing paragraphs
+  ##
+  for i = 1:length(doc_struct.body)
+    ## Note: Matlab R2016a treats both as new section heads
+    if (any (strcmp (doc_struct.body{i}.type, ...
+                     {"paragraph", "paragraph_no_break"})))
+      ## TODO: implement
+    endif
+  endfor
+
+  ##
+  ## Start 3rd level code evaluation
+  ##
+
+  ## Neccessary as the code does not run interactively
+  page_screen_output (0, "local");
+
+  ## Evaluate code, that does not appear in the output.
+  if (options.evalCode)
+    eval_code (options.codeToEvaluate);
+  endif
+  for i = 1:length(doc_struct.body)
+    if (strcmp (doc_struct.body{i}.type, "code"))
+      if (options.evalCode)
+        if (options.catchError)
+          try
+            doc_struct.body{i}.output = eval_code (doc_struct.body{i}.code);
+           catch err
+            doc_struct.body{i}.output = ["error: ", err.message, ...
+              "\n\tin:\n\n", doc_struct.body{i}.code];
+          end_try_catch
+        else
+          doc_struct.body{i}.output = eval_code (doc_struct.body{i}.code);
+        endif
+
+        ## Truncate output to desired length
+        if (options.maxOutputLines < length (doc_struct.body{i}.output))
+          doc_struct.body{i}.output = ...
+            doc_struct.body{i}.output(1:options.maxOutputLines);
+        endif
+
+        ## TODO: save figures
+      endif
+
+      ## Stip code from output
+      if (! options.showCode)
+        doc_struct.body{i}.code = [];
+      endif
+    endif
+  endfor
+
+  out_file = doc_struct;
+
   #{
   if (strcmpi (options.format, "latex"))
     create_latex (ifile, ofile, options);
@@ -284,47 +357,25 @@ function out_file = publish (file, varargin)
     create_html (file, options);
   endif
   #}
-
-  fid = fopen (file, "r");
-  i = 1;
-  m_source{1} = fgetl (fid);
-  while (ischar (m_source{i}))
-    i++;
-    m_source{i} = fgetl (fid);
-  endwhile
-  fclose(fid);
-
-  m_source = cellstr (m_source(1:end-1)); ## No EOL
-  parsed_source = deblank (m_source);
-
-  doc_struct.title = file;
-  doc_struct.intro = "";
-  doc_struct.body = cell ();
-
-  ## Start parsing
-  [parsed_source, doc] = read_doc_title_intro (parsed_source, doc_struct);
-  parsed_source = strip_empty_lines (parsed_source);
-  progress = length (parsed_source);
-  while (! isempty (parsed_source))
-    ## Note: Matlab R2016a treats both as new section heads
-    if (is_head (parsed_source{1}) || is_no_break_head (parsed_source{1}))
-      [parsed_source, doc_struct] = read_paragraph (parsed_source, doc_struct);
-    else
-      [parsed_source, doc_struct] = read_code (parsed_source, doc_struct);
-    endif
-
-    parsed_source = strip_empty_lines (parsed_source);
-
-    ## Stop if no progress happens
-    if (progress == length (parsed_source))
-      error ("No progress, cannot handle\n%s\n", parsed_source{1});
-    else
-      progress = length (parsed_source);
-    endif
-  endwhile
-  out_file = doc_struct;
-
+  
 endfunction
+
+
+
+function m_source = read_file_to_cellstr (file)
+## READ_FILE_TO_CELLSTR reads a given file line by line to a cellstring
+fid = fopen (file, "r");
+i = 1;
+m_source{i} = fgetl (fid);
+while (ischar (m_source{i}))
+  i++;
+  m_source{i} = fgetl (fid);
+endwhile
+fclose(fid);
+m_source = cellstr (m_source(1:end-1)); ## No EOL
+endfunction
+
+
 
 function bool = is_head (line)
 ## IS_HEAD Checks line to be a section headline
@@ -333,12 +384,16 @@ bool = (! isempty (line)) ...
        && ((length (line) == 2) || (line(3) == " "));
 endfunction
 
+
+
 function bool = is_no_break_head (line)
 ## IS_NO_BREAK_HEAD Checks line to be a headline without section break
 bool = (! isempty (line)) ...
        && any (strncmp (line, {"%%%", "###"}, 3)) ...
        && ((length (line) == 3) || (line(4) == " "));
 endfunction
+
+
 
 function bool = is_paragraph (line)
 ## IS_PARAGRAPH Checks line to be a paragraph line
@@ -349,9 +404,9 @@ endfunction
 
 
 
-function [p_source, doc_struct] = read_doc_title_intro (p_source, doc_struct)
-## READ_DOC_TITLE_INTRO Reads the documents title and introduction text into
-##  the document strucure.
+function [p_source, doc_struct] = read_doc_head (p_source, doc_struct)
+## READ_DOC_HEAD Reads the documents title and introduction text into the
+##  document strucure.
 ##
 ##   p_source is a cellstring vector
 ##   doc is a document structure
@@ -364,26 +419,41 @@ function [p_source, doc_struct] = read_doc_title_intro (p_source, doc_struct)
 ## First line starting with "##" or "%%",
 ## followed by either a blank or end-of-line (no title)
 ntitle = "";
-if (isempty (p_source{1}) || (! is_head (p_source{1})))
+if (isempty (p_source)
+    || isempty (p_source{1})
+    || ! is_head (p_source{1}))
   return;
 elseif (length (p_source{1}) >= 2)
   ntitle = p_source{1};
 endif
 
+## Protect against only title documents
+if (length (p_source) < 2)
+  if (! isempty (ntitle))
+    doc_struct.title = ntitle(4:end);
+  endif
+  p_source(1) = [];
+  return;
+endif
+
 ## Following lines are (0..N) intro lines ...
 curr_line = 2;
-while (is_paragraph (p_source{curr_line}))
+while ((curr_line <= length(p_source)) ...
+       && (is_paragraph (p_source{curr_line})))
   curr_line++;
 endwhile
 nintro = p_source(2:curr_line-1);
 
 ## ... and (0..M) blank lines ...
-while (isempty (p_source{curr_line}))
+while ((curr_line <= length(p_source)) ...
+       && (isempty (p_source{curr_line})))
   curr_line++;
 endwhile
 
 ## .. until next section head
-if (! is_head (p_source{curr_line}))
+if ((curr_line <= length(p_source)) ...
+    && ! (is_head (p_source{curr_line})
+          || is_no_break_head (p_source{curr_line})))
   return;
 endif
 
@@ -395,13 +465,15 @@ for i = 1:length(nintro)
     doc_struct.intro = [doc_struct.intro, " ", l(3:end)];
   endif
 endfor
+
+## Strip parsed lines
 p_source(1:curr_line-1) = [];
 endfunction
 
 
 
 function [p_source, doc_struct] = read_paragraph (p_source, doc_struct)
-## READ_PARAGRAPH Reads a paragraph title and text into the document strucure.
+## READ_PARAGRAPH Reads a paragraph into the document strucure.
 ##
 ##   p_source is a cellstring vector
 ##   doc_struct is a document structure
@@ -414,6 +486,7 @@ function [p_source, doc_struct] = read_paragraph (p_source, doc_struct)
 ## First line starting with "##" or "%%",
 ## followed by either a blank or end-of-line (no title)
 title_str = "";
+no_break = false;
 if (isempty (p_source{1})
     || ! (is_head (p_source{1}) || is_no_break_head (p_source{1})))
   return;
@@ -423,51 +496,45 @@ elseif ((is_head (p_source{1})) && (length (p_source{1}) > 2))
 elseif ((is_no_break_head (p_source{1})) && (length (p_source{1}) > 3))
   title_str = p_source{1};
   title_str = title_str(5:end);
+  no_break = true;
 endif
 
 ## Following lines are (0..N) paragraph lines
 curr_line = 2;
-par_str = "";
 while ((curr_line <= length(p_source)) ...
        && (is_paragraph (l = p_source{curr_line})))
-  l = l(3:end);
-  if (! isempty (l))
-    par_str = [par_str, " ", l];
-  endif
+  p_source{curr_line} = l(3:end);
   curr_line++;
 endwhile
+content = p_source(2:curr_line-1);
 
-if ((! isempty (title_str)) || (! isempty (par_str)))
+if (! isempty (title_str) ...
+    || ! (isempty (content) ...
+          || all (cellfun (@isempty, content))))
   doc_struct.body{end + 1}.type = "paragraph";
+  if (no_break)
+    doc_struct.body{end}.type = "paragraph_no_break";
+  endif
   doc_struct.body{end}.title = title_str;
-  doc_struct.body{end}.text = strtrim(par_str);
+  doc_struct.body{end}.content = content;
 endif
 
-p_source(1:curr_line-1) = [];
-endfunction
-
-function [p_source] = strip_empty_lines (p_source)
-## STRIP_EMPTY_LINES removes incipient empty lines from p_source
-##
-curr_line = 1;
-while ((curr_line <= length(p_source)) ...
-       && (isempty (p_source{curr_line})))
-  curr_line++;
-endwhile
+## Strip parsed lines
 p_source(1:curr_line-1) = [];
 endfunction
 
 
 
 function [p_source, doc_struct] = read_code (p_source, doc_struct)
-## READ_CODE Reads a paragraph title and text into the document strucure.
+## READ_CODE Reads code (or blank) lines from the document.
 ##
 ##   p_source is a cellstring vector
 ##   doc_struct is a document structure
 ##
 ## If code was found, p_source is reduced by the already parsed lines and
-## doc_struct is modified in title and intro accordingly.  Otherwise the input
-## and output arguments are identical.
+## doc_struct is appended by a code entry.  If no code was found, the input
+## and output arguments are identical, except for any whitespace is removed
+## up to the next section start.
 ##
 
 curr_line = 1;
@@ -477,23 +544,36 @@ while ((curr_line <= length(p_source)) ...
   curr_line++;
 endwhile
 
+## Remove incipient blank lines
+code_start = 1;
+while ((code_start < curr_line) ...
+       && isempty (p_source{code_start}))
+  code_start++;
+endwhile
+
 ## Remove trailing blank lines
-blank_lines = curr_line-1;
-while (isempty (p_source{blank_lines}))
-  blank_lines--;
+code_end = curr_line-1;
+while ((code_end >= 1) && isempty (p_source{code_end}))
+  code_end--;
 endwhile
 
 ## Extract code to evaluate
 code_str = "";
-for i = 1:blank_lines
+for i = code_start:code_end
   code_str = [code_str, "\n", p_source{i}];
 endfor
 
-doc_struct.body{end + 1}.type = "code";
-doc_struct.body{end}.code = strtrim(code_str);
+## Append code block
+if (! isempty (code_str))
+  doc_struct.body{end + 1}.type = "code";
+  doc_struct.body{end}.code = strtrim(code_str);
+  doc_struct.body{end}.output = [];
+endif
 
+## Strip parsed lines
 p_source(1:curr_line-1) = [];
 endfunction
+
 
 
 function create_html (ifile, options)
@@ -603,15 +683,34 @@ breaklines=true}\n";
   fclose(fid);
 endfunction
 
-function script_result = exec_script (ifile)
-  diary publish_tmp_script.txt
-  eval (ifile(1:end-2))
-  diary off
-  fid = fopen ("publish_tmp_script.txt", 'r');
-  script_result = fread (fid, '*char')';
-  fclose(fid);
-  delete ("publish_tmp_script.txt");
+
+
+function ___cstr___ = eval_code (___code___);
+## EVAL_CODE evaluates a given string with Octave code in an extra
+##   temporary context and returns a cellstring with the eval output
+
+## TODO: potential conflicting variables sourrounded by "___"
+##       better solution?
+## TODO: suppres any eval output
+persistent ___context___ = [tempname(), ".mat"];
+if (isempty (___code___))
+  return;
+endif
+
+if (exist (___context___, "file") == 2)
+  load (___context___);
+endif
+___f___ = tempname ();
+diary (___f___)
+eval (___code___);
+diary off
+___cstr___ = read_file_to_cellstr (___f___);
+unlink (___f___);
+clear ___code___ ___f___
+save (___context___);
 endfunction
+
+
 
 function [section3_title, disp_fig] = exec_print (ifile, options)
   figures = findall (0, "type", "figure");
@@ -635,10 +734,9 @@ function [section3_title, disp_fig] = exec_print (ifile, options)
   endif
 endfunction
 
-# TODO
-#   * ADD VARARGIN FOR ADDITIONAL FILES SOURCES TO BE INLCUDED AS
-#     APPENDICES (THIS SOLVES THE PROBLEM OF FUNCTIONS SINCE YOU CAN
-#     PUT THE FUNCTION CALL IN SCRIPT CALL PUBLISH(SCRIPT) AND ADD
-#     THE FUNCTIONS CODE AS APPENDIX)
-#
-#   * KNOWN PROBLEM: THE COMMENTING LINES IN HTML
+%!test
+%! cases = dir ("test_script*.m");
+%! cases = strsplit (strrep ([cases.name], ".m", ".m\n"));
+%! for i = 1:length(cases)-1
+%!   publish (cases{i});
+%! endfor
