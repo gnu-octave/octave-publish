@@ -128,7 +128,6 @@ function out_file = publish (file, varargin)
   if (!strcmp (file_ext, ".m"))
     error ("publish: Only Octave scripts can be published.");
   endif
-  clear file_ext
 
   ## Get structure with necessary options
   options = struct ();
@@ -303,7 +302,68 @@ function out_file = publish (file, varargin)
     ## Note: Matlab R2016a treats both as new section heads
     if (any (strcmp (doc_struct.body{i}.type, ...
                      {"paragraph", "paragraph_no_break"})))
-      ## TODO: implement
+      content = doc_struct.body{i}.content;
+      p_content = cell ();
+      j = 1;
+      while (j <= length(content))
+        switch (content{j})
+          ## TODO: these are sorrounded by a blank line
+          ##
+          ## Preformatted text (one leading space)
+          ## Octave code (two leading spaces)
+          ## Bulleted list *
+          ## Numbered list #
+          ## Include <include>fname.m</include>
+          ## Graphic <<myGraphic.png>>
+
+          ## HTML markup
+          case "<html>"
+            start_html = j + 1;
+            while ((j < length(content)) && ! strcmpi (content{j}, "</html>"))
+              j++;
+            endwhile
+            if ((j == length(content)) && ! strcmpi (content{j}, "</html>"))
+              warning ("publish: no closing </html> found");
+            else
+              j++;  ## Skrip closing tag
+            endif
+            if (j > start_html)
+              p_content{end+1}.type = "html";
+              p_content{end}.content = strjoin (content(start_html:j-2), "\n");
+            endif
+          ## LaTeX markup
+          case "<latex>"
+            start_latex = j + 1;
+            while ((j < length(content)) && ! strcmpi (content{j}, "</latex>"))
+              j++;
+            endwhile
+            if ((j == length(content)) && ! strcmpi (content{j}, "</latex>"))
+              warning ("publish: no closing </latex> found");
+            else
+              j++;  ## Skrip closing tag
+            endif
+            if (j > start_html)
+              p_content{end+1}.type = "latex";
+              p_content{end}.content = strjoin (content(start_latex:j-2), "\n");
+            endif
+          ## Remaining normal text or markups belonging to normal text
+          ## that are handled while output generation:
+          ##
+          ## * Italic, bold, and monospaced text
+          ## * Inline and block LaTeX
+          ## * Links
+          ## * Trademark symbols
+          ##
+          otherwise
+            if (isempty (p_content) || ! strcmp (p_content{end}.type, "text"))
+              p_content{end+1}.type = "text";
+              p_content{end}.content = cell();
+            endif
+            p_content{end}.content{end+1} = content{j};
+            j++;
+        endswitch
+      endwhile
+      doc_struct.body{i}.content = p_content;
     endif
   endfor
 
