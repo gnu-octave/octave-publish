@@ -298,70 +298,160 @@ function out_file = publish (file, varargin)
   ##
   ## Start 2nd level parsing paragraphs
   ##
+
+  ## Define parsing helper functions
+  has_N_leading_spaces = @(cstr, N) ! isempty(cstr) ...
+                                    && strncmp (char (cstr), "  ", N);
+  has_preceding_blank_line = @(cstr, line) (line > 1) ...
+                                           && isempty (cstr{line - 1});
   for i = 1:length(doc_struct.body)
-    ## Note: Matlab R2016a treats both as new section heads
     if (any (strcmp (doc_struct.body{i}.type, ...
                      {"paragraph", "paragraph_no_break"})))
       content = doc_struct.body{i}.content;
       p_content = cell ();
       j = 1;
       while (j <= length(content))
-        switch (content{j})
-          ## TODO: these are sorrounded by a blank line
-          ##
-          ## Preformatted text (one leading space)
-          ## Octave code (two leading spaces)
-          ## Bulleted list *
-          ## Numbered list #
-          ## Include <include>fname.m</include>
-          ## Graphic <<myGraphic.png>>
+        ## Skip empty lines
+        if (isempty (content{j}))
+          j++;
+          continue;
+        endif
 
-          ## HTML markup
-          case "<html>"
-            start_html = j + 1;
-            while ((j < length(content)) && ! strcmpi (content{j}, "</html>"))
-              j++;
-            endwhile
-            if ((j == length(content)) && ! strcmpi (content{j}, "</html>"))
-              warning ("publish: no closing </html> found");
-            else
-              j++;  ## Skrip closing tag
-            endif
-            if (j > start_html)
-              p_content{end+1}.type = "html";
-              p_content{end}.content = strjoin (content(start_html:j-2), "\n");
-            endif
-          ## LaTeX markup
-          case "<latex>"
-            start_latex = j + 1;
-            while ((j < length(content)) && ! strcmpi (content{j}, "</latex>"))
-              j++;
-            endwhile
-            if ((j == length(content)) && ! strcmpi (content{j}, "</latex>"))
-              warning ("publish: no closing </latex> found");
-            else
-              j++;  ## Skrip closing tag
-            endif
-            if (j > start_html)
-              p_content{end+1}.type = "latex";
-              p_content{end}.content = strjoin (content(start_latex:j-2), "\n");
-            endif
-          ## Remaining normal text or markups belonging to normal text
-          ## that are handled while output generation:
-          ##
-          ## * Italic, bold, and monospaced text
-          ## * Inline and block LaTeX
-          ## * Links
-          ## * Trademark symbols
-          ##
-          otherwise
-            if (isempty (p_content) || ! strcmp (p_content{end}.type, "text"))
-              p_content{end+1}.type = "text";
-              p_content{end}.content = cell();
-            endif
-            p_content{end}.content{end+1} = content{j};
+        start_block = j;
+        ## Octave code (two leading spaces)
+        if (has_preceding_blank_line (content, j) ...
+            && has_N_leading_spaces (content{j}, 2))
+          while ((j <= length(content)) ...
+                 && (isempty (content{j}) ...
+                     || has_N_leading_spaces (content{j}, 2)))
             j++;
-        endswitch
+          endwhile
+          p_content{end+1}.type = "octave_code";
+          pstr = content(start_block:j-1);
+          for k = 1:length(pstr)
+            s = pstr{k};
+            pstr{k} = s(3:end);
+          endfor
+          p_content{end}.content = strjoin (pstr, "\n");
+        ## Preformatted text (one leading space)
+        elseif (has_preceding_blank_line (content, j) ...
+                && has_N_leading_spaces (content{j}, 1))
+          while ((j <= length(content)) ...
+                 && (isempty (content{j}) ...
+                     || has_N_leading_spaces (content{j}, 1)))
+            j++;
+          endwhile
+          p_content{end+1}.type = "preformatted_text";
+          pstr = content(start_block:j-1);
+          for k = 1:length(pstr)
+            s = pstr{k};
+            pstr{k} = s(2:end);
+          endfor
+          p_content{end}.content = strjoin (pstr, "\n");
+        ## Bulleted list *
+        elseif (has_preceding_blank_line (content, j) ...
+                && strncmp (content{j}, "* ", 2))
+          while ((j <= length(content)) && (! isempty (content{j})))
+            j++;
+          endwhile
+          p_content{end+1}.type = "bulleted_list";
+          p_content{end}.content = strjoin (content(start_block:j-1), "\n");
+          ## Revove first "* "
+          p_content{end}.content = p_content{end}.content(3:end);
+          ## Split items
+          p_content{end}.content = strsplit (p_content{end}.content, "\n* ");
+        ## Numbered list #
+        elseif (has_preceding_blank_line (content, j) ...
+                && strncmp (content{j}, "# ", 2))
+          while ((j <= length(content)) && (! isempty (content{j})))
+            j++;
+          endwhile
+          p_content{end+1}.type = "numbered_list";
+          p_content{end}.content = strjoin (content(start_block:j-1), "\n");
+          ## Revove first "# "
+          p_content{end}.content = p_content{end}.content(3:end);
+          ## Split items
+          p_content{end}.content = strsplit (p_content{end}.content, "\n# ");
+        ## Include <include>fname.m</include>
+        elseif (has_preceding_blank_line (content, j) ...
+                && strncmpi (content{j}, "<include>", 9))
+          while ((j <= length(content)) && ! isempty (content{j}))
+            j++;
+          endwhile
+          p_content{end+1}.type = "include";
+          p_content{end}.content = strjoin (content(start_block:j-1), "");
+          ## Remove leading <include>
+          p_content{end}.content = p_content{end}.content(10:end);
+          ## Remove trailing </include>
+          idx = strfind (p_content{end}.content, "</");
+          ## Leave malformed input for user to fix
+          if (isscalar (idx))
+            p_content{end}.content = p_content{end}.content(1:idx-1);
+          endif
+        ## Graphic <<myGraphic.png>>
+        elseif (has_preceding_blank_line (content, j) ...
+                && strncmpi (content{j}, "<<", 2))
+          while ((j <= length(content)) && ! isempty (content{j}))
+            j++;
+          endwhile
+          p_content{end+1}.type = "graphic";
+          p_content{end}.content = strjoin (content(start_block:j-1), "");
+          ## Remove leading <<
+          p_content{end}.content = p_content{end}.content(3:end);
+          ## Remove trailing >>
+          idx = strfind (p_content{end}.content, ">>");
+          ## Leave malformed input for user to fix
+          if (isscalar (idx))
+            p_content{end}.content = p_content{end}.content(1:idx-1);
+          endif
+        ## HTML markup
+        elseif (strcmpi (content{j}, "<html>"))
+          start_html = j + 1;
+          while ((j < length(content)) && ! strcmpi (content{j}, "</html>"))
+            j++;
+          endwhile
+          if ((j == length(content)) && ! strcmpi (content{j}, "</html>"))
+            warning ("publish: no closing </html> found");
+          else
+            j++;  ## Skip closing tag
+          endif
+          if (j > start_html)
+            p_content{end+1}.type = "html";
+            p_content{end}.content = strjoin (content(start_html:j-2), "\n");
+          endif
+        ## LaTeX markup
+        elseif (strcmpi (content{j}, "<latex>"))
+          start_latex = j + 1;
+          while ((j < length(content)) && ! strcmpi (content{j}, "</latex>"))
+            j++;
+          endwhile
+          if ((j == length(content)) && ! strcmpi (content{j}, "</latex>"))
+            warning ("publish: no closing </latex> found");
+          else
+            j++;  ## Skrip closing tag
+          endif
+          if (j > start_latex)
+            p_content{end+1}.type = "latex";
+            p_content{end}.content = strjoin (content(start_latex:j-2), "\n");
+          endif
+        ## Remaining normal text or markups belonging to normal text
+        ## that are handled while output generation:
+        ##
+        ## * Italic, bold, and monospaced text
+        ## * Inline and block LaTeX
+        ## * Links
+        ## * Trademark symbols
+        ##
+        else
+          if (isempty (p_content) || ! strcmp (p_content{end}.type, "text"))
+            p_content{end+1}.type = "text";
+            p_content{end}.content = content{j};
+          else
+            p_content{end}.content = strjoin ({p_content{end}.content, ...
+                                               content{j}}, "\n");
+          endif
+          j++;
+        endif
       endwhile
       doc_struct.body{i}.content = p_content;
     endif
@@ -397,6 +487,7 @@ function out_file = publish (file, varargin)
           doc_struct.body{i}.output = ...
             doc_struct.body{i}.output(1:options.maxOutputLines);
         endif
+        doc_struct.body{i}.output = strjoin (doc_struct.body{i}.output, "\n");
 
         ## TODO: save figures
       endif
@@ -410,13 +501,12 @@ function out_file = publish (file, varargin)
 
   out_file = doc_struct;
 
-  #{
+  
   if (strcmpi (options.format, "latex"))
     create_latex (ifile, ofile, options);
   elseif strcmpi(options.format, "html")
-    create_html (file, options);
+    create_html (doc_struct, options);
   endif
-  #}
   
 endfunction
 
@@ -636,41 +726,106 @@ endfunction
 
 
 
-function create_html (ifile, options)
+function create_html (doc_struct, options)
+html_head = ["<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n", ...
+  "<title>", doc_struct.title, "</title>\n", ...
+  "<script type=\"text/javascript\" async ", ...
+  "src=\"https://cdn.mathjax.org/mathjax/latest/MathJax.js", ...
+  "?config=TeX-MML-AM_CHTML\">\n", ...
+  "</script>\n</head>\n<body>\n"];
 
-  ofile = strcat (ifile(1:end-1), "html");
-  html_start = "<html>\n<body>\n";
-  html_end   = "</body>\n</html>\n";
+html_fmatter = "";
+html_toc = "<h2>Contents</h2>\n<ul>\n";
+if (! isempty (doc_struct.title))
+  html_fmatter = ["<h1>", doc_struct.title, "</h1>\n"];
+endif
+if (! isempty (doc_struct.intro))
+  html_fmatter = [html_fmatter, "<p>", doc_struct.intro, "</p>\n"];
+endif
 
-  if options.showCode
-    section1_title = "<h2>Source code</h2>\n";
-    fid = fopen (ifile, "r");
-    source_code = fread (fid, "*char")';
-    fclose(fid);
-  else
-    section1_title = "";
-    source_code    = "";
-  endif
+node_counter = 1;
+html_content = "";
+for i = 1:length(doc_struct.body)
+  switch (doc_struct.body{i}.type)
+    case "code"
+      if (! isempty (doc_struct.body{i}.code))
+        html_content = [html_content, "<pre class=\"oct-code\">", ...
+          doc_struct.body{i}.code, "</pre>"];
+      endif
+      if (! isempty (doc_struct.body{i}.output))
+        html_content = [html_content, "<pre class=\"oct-code\">", ...
+          doc_struct.body{i}.output, "</pre>"];
+      endif
+    ## Note: Matlab R2016a treats both as new section heads
+    case {"paragraph", "paragraph_no_break"}
+      if (! isempty (doc_struct.body{i}.title))
+        html_content = [html_content, "<h2><a name=\"node", ...
+          num2str(node_counter), "\">", ...
+          doc_struct.body{i}.title, "</a></h2>\n"];
+        html_toc = [html_toc, "<li><a href=\"#node", ...
+          num2str(node_counter), "\">", ...
+          doc_struct.body{i}.title, "</a></li>\n"];
+        node_counter++;
+      endif
+      for j = 1:length(doc_struct.body{i}.content)
+        elem = doc_struct.body{i}.content{j};
+        switch (elem.type)
+          case "graphic"
+            html_content = [html_content, "<img src=\"", ...
+              elem.content, "\" alt=\"", ...
+              elem.content, "\">\n"];
+          case "include"
+          case "octave_code"
+            html_content = [html_content, "<pre class=\"pre-code\">", ...
+              elem.content, "</pre>\n"];
+          case "preformatted_text"
+            html_content = [html_content, "<pre class=\"pre-text\">", ...
+              elem.content, "</pre>\n"];
+          case "numbered_list"
+          case "bulleted_list"
+          case "text"
+            str = elem.content;
+            ## Bold
+            str = strsplit (str, "*");
+            for k = 2:2:length(str)
+              str{k} = ["<b>", str{k}, "</b>"];
+            endfor
+            str = strjoin (str, "");
+            ## Italic
+            str = strsplit (str, "_");
+            for k = 2:2:length(str)
+              str{k} = ["<i>", str{k}, "</i>"];
+            endfor
+            str = strjoin (str, "");
+            ## Monospaced
+            str = strsplit (str, "|");
+            for k = 2:2:length(str)
+              str{k} = ["<code>", str{k}, "</code>"];
+            endfor
+            str = strjoin (str, "");
+            ## Replace special symbols
+            str = strrep (str, "(TM)", "&trade;");
+            str = strrep (str, "(R)", "&reg;");
+            html_content = [html_content, str, "\n"];
+          case "html"
+            html_content = [html_content, elem.content, "\n"];
+        endswitch
+      endfor
+  endswitch
+endfor
 
-  if options.evalCode
-    section2_title = "<h2>Execution results</h2>\n";
-    oct_command    = strcat ("<listing>octave> ", ifile(1:end-2), "\n");
-    script_result  = exec_script (ifile);
-  else
-    section2_title = "";
-    oct_command    = "";
-    script_result  = "";
-  endif
+html_toc = [html_toc, "</ul>\n"];
+html_content = [html_fmatter, html_toc, html_content];
 
-  [section3_title, disp_fig] = exec_print (ifile, options);
+html_foot = ["\n", ...
+  "<footer>Published with GNU Octave ", version(), "</footer>\n", ...
+  "<!--\n##### SOURCE BEGIN #####\n", ...
+  strjoin(doc_struct.m_source, "\n"), ...
+  "\n##### SOURCE END #####\n-->\n", ...
+  "</body>\n</html>\n"];
 
-  final_document = strcat (html_start, section1_title, "<listing>\n", source_code,"\n",...
-                           "</listing>\n", section2_title, oct_command, script_result,...
-                           "</listing>", section3_title, disp_fig, html_end);
-
-  
-  fid = fopen (ofile, "w");
-  fputs (fid, final_document);
+  fid = fopen ("bla.html", "w");
+  fputs (fid, [html_head, html_content, html_foot]);
   fclose (fid);
 
 endfunction
