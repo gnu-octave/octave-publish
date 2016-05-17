@@ -1,6 +1,8 @@
 %% Headline
 % Headline description.
-% about some lines and blanks
+%
+% Spanning some lines and blanks.
+%
 
 %%
 
@@ -31,6 +33,8 @@ i = 0:2*pi
 y = sin(i)
 
 %%
+%
+% Content without head.
 %
 
 % some real comment and split code block
