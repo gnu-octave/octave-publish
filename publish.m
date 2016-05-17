@@ -786,6 +786,8 @@ for i = 1:length(doc_struct.body)
           case "text"
             str = elem.content;
             ## Bold
+            ## TODO: Use regular expressions!
+            ##str2 = regexprep(str,'\*([\w]*)\*', "<b>$1</b>");
             str = strsplit (str, "*");
             for k = 2:2:length(str)
               str{k} = ["<b>", str{k}, "</b>"];
