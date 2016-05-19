@@ -64,6 +64,10 @@ y = cos(x)
 % figure code
 plot (x,y)
 
+% another plot
+figure ()
+plot (y,x)
+
 ## Text formatting
 # PLAIN TEXT _ITALIC TEXT_ *BOLD TEXT* |MONOSPACED TEXT|
 # |MONOSPACED TEXT| PLAIN TEXT _ITALIC TEXT_ *BOLD TEXT*
@@ -72,6 +76,9 @@ plot (x,y)
 # Trademarks:
 # TEXT(TM)
 # TEXT(R)
+
+% again another plot
+plot (x,y)
 
 %% Bulleted List
 %
@@ -218,6 +225,24 @@ plot (x,y)
 %
 %
 
+%%
+%
+%
+%
+%
+%
+%
+%
+%
+% and continued
+%
+%
+%
+%
+%
+%
+%
+
 ## Long void
 #
 #
@@ -238,3 +263,22 @@ plot (x,y)
 #
 #
 
+##
+#
+#
+#
+#
+#
+#
+#
+#  and continued
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
