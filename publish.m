@@ -168,7 +168,9 @@ else
 endif
 
 if (! isfield (options, "outputDir"))
-  options.outputDir = "";
+  ## Matlab R2016a doc says default is "", but specifies to create a sub
+  ## directory named "html" in the current working directory.
+  options.outputDir = "html";
 elseif (! ischar (options.outputDir))
   error ("publish: OUTPUTDIR must be a string");
 endif
@@ -292,14 +294,29 @@ doc_struct = parse_m_source (doc_struct);
 ## Neccessary as the code does not run interactively
 page_screen_output (0, "local");
 
+[mkdir_stat, mkdir_msg] = mkdir (options.outputDir);
+if (mkdir_stat != 1)
+  error ("publish: cannot create output directory. %s", mkdir_msg);
+endif
+
+## Remember previously opened figures
+fig_ids = findall (0, "type", "figure");
+[~,fig_name] = fileparts (doc_struct.m_source_file_name);
+fig_num = 1;
+fig_list = struct ();
+
 ## Evaluate code, that does not appear in the output.
 if (options.evalCode)
   eval_code (options.codeToEvaluate);
+  ## Create a new figure, if there are existing plots
+  if (! isempty (fig_ids) && options.useNewFigure)
+    figure ();
+  endif
 endif
 for i = 1:length(doc_struct.body)
   if (strcmp (doc_struct.body{i}.type, "code"))
     if (options.evalCode)
-      r = doc_struct.body{i}.code_range;
+      r = doc_struct.body{i}.lines;
       code_str = strjoin (doc_struct.m_source(r(1):r(2)), "\n");
       if (options.catchError)
         try
@@ -312,16 +329,58 @@ for i = 1:length(doc_struct.body)
         doc_struct.body{i}.output = eval_code (code_str);
       endif
 
+      ## Check for newly created figures ...
+      fig_ids_new = setdiff (findall (0, "type", "figure"), fig_ids);
+      ## ... and save them
+      for j = 1:length(fig_ids_new)
+        drawnow ();
+        if (isempty (get (fig_ids_new(j), "children")))
+          continue;
+        endif
+        fname = [fig_name, "-", num2str(fig_num), ".", options.imageFormat];
+        print (fig_ids_new(j), [options.outputDir, filesep(), fname], ...
+          ["-d", options.imageFormat], "-color");
+        fig_num++;
+        delete (fig_ids_new(j));
+        fname = {fname};
+        if (isfield (fig_list, num2str (i)))
+          fname = [getfield(fig_list, num2str (i)), fname];
+        endif
+        fig_list = setfield (fig_list, num2str (i), fname);
+        ## Create a new figure, if there are existing plots
+        if (isempty (setdiff (findall (0, "type", "figure"), fig_ids)) ...
+            &&! isempty (fig_ids) && options.useNewFigure)
+          figure ();
+        endif
+      endfor
+
       ## Truncate output to desired length
       if (options.maxOutputLines < length (doc_struct.body{i}.output))
         doc_struct.body{i}.output = ...
           doc_struct.body{i}.output(1:options.maxOutputLines);
       endif
       doc_struct.body{i}.output = strjoin (doc_struct.body{i}.output, "\n");
-
-      ## TODO: save figures
     endif
   endif
+endfor
+
+## Close any by publish opened figures
+delete (setdiff (findall (0, "type", "figure"), fig_ids));
+
+## Insert figures to document
+fig_code_blocks = fieldnames (fig_list);
+for i = 1:length(fig_code_blocks)
+  elem.type = "paragraph";
+  elem.title = "";
+  fnames = getfield (fig_list, fig_code_blocks{i});
+  for j = 1:length(fnames)
+    elem.content{j} = struct ("type", "graphic", "content", fnames{j});
+  endfor
+  ## Compute index, where the figure(s) has to be inserterd,
+  ## changes with i!
+  j = str2num (fig_code_blocks{i}) + i - 1;
+  doc_struct.body = [doc_struct.body(1:j), elem, doc_struct.body(j+1:end)];
+  elem = [];
 endfor
 
 out_file = doc_struct;
@@ -341,6 +400,24 @@ function doc_struct = parse_m_source (doc_struct)
 ##   This function extracts the overall structure (paragraphs and code
 ##   sections) given in doc_struct.m_source.
 ##
+##   The result is written to doc_struct.body, which then contains a cell
+##   vector of structs, either of
+##
+##     a) {struct ("type", "code", ...
+##                 "lines", [a, b], ...
+##                 "output", [])}
+##     b) {struct ("type", "paragraph", ...
+##                 "title", str, ...
+##                 "content", {..})}
+##     c) {struct ("type", "paragraph_no_break", ...
+##                 "title", str, ...
+##                 "content", {..})}
+##
+
+## If there is nothing to parse
+if (isempty (doc_struct.m_source))
+  return;
+endif
 
 ## Parsing helper functions
 ##
@@ -361,6 +438,14 @@ par_start_idx = find ( ...
   cellfun (is_head, doc_struct.m_source) ...
   | cellfun (is_no_break_head, doc_struct.m_source));
 
+## If the whole document is code
+if (isempty (par_start_idx))
+  doc_struct.body{end + 1}.type = "code";
+  doc_struct.body{end}.lines = [1, length(doc_struct.m_source)];
+  doc_struct.body{end}.output = [];
+  return;
+endif
+
 ## Determine continuous range of paragraphs
 par_end_idx = [par_start_idx(2:end) - 1, length(doc_struct.m_source)];
 for i = 1:length(par_end_idx)
@@ -370,7 +455,6 @@ for i = 1:length(par_end_idx)
     par_end_idx(i) = par_start_idx(i) + idx(1) - 1;
   endif
 endfor
-
 ## Code sections between paragraphs
 code_start_idx = par_end_idx(1:end - 1) + 1;
 code_end_idx = par_start_idx(2:end) - 1;
@@ -403,7 +487,10 @@ code_end_idx(idx) = [];
 ##   1. First paragraph must start in first line
 ##   2. Second paragraph must start before any code
 has_title = false;
-if ((par_start_idx(1) == 1) && (par_start_idx(2) < code_start_idx(1)))
+if ((! isempty (par_start_idx)) && (par_start_idx(1) == 1) ...
+    && ((isempty (code_start_idx))
+        || ((length (par_start_idx) > 1)
+            && (par_start_idx(2) < code_start_idx(1)))))
   has_title = true;
 endif
 
@@ -414,7 +501,7 @@ for i = 1:length(par_start_idx)
   while ((j <= length(code_start_idx))
     && (par_start_idx(i) > code_start_idx(j)))
     doc_struct.body{end + 1}.type = "code";
-    doc_struct.body{end}.code_range = [code_start_idx(j), code_end_idx(j)];
+    doc_struct.body{end}.lines = [code_start_idx(j), code_end_idx(j)];
     doc_struct.body{end}.output = [];
     j++;
   endwhile
@@ -434,7 +521,6 @@ for i = 1:length(par_start_idx)
   if (! isempty (title_str) ...
       || ! (isempty (content) || all (cellfun (@isempty, content))))
     doc_struct.body{end + 1}.type = type_str;
-    doc_struct.body{end}.code_range = [par_start_idx(i), par_end_idx(i)];
     doc_struct.body{end}.title = title_str;
     doc_struct.body{end}.content = parse_paragraph_content (content);
   endif
@@ -452,8 +538,37 @@ endfunction
 
 
 function [p_content] = parse_paragraph_content (content)
-## PARSE_PARAGRAPH_CONTENT parses the content of a paragraph in a cell vector
-##   
+## PARSE_PARAGRAPH_CONTENT second parsing level
+##
+##   The result of parsing paragraph i is written to
+##   doc_struct.body{i}.content, which then contains a
+##   cell vector of structs, either of
+##
+##     a) {struct ("type", "preformatted_code", ...
+##                 "content", code_str)}
+##     b) {struct ("type", "preformatted_text", ...
+##                 "content", text_str)}
+##     c) {struct ("type", "bulleted_list", ...
+##                 "content", {"item1", "item2", ..})}
+##     d) {struct ("type", "numbered_list", ...
+##                 "content", {"item1", "item2", ..})}
+##     e) {struct ("type", "include", ...
+##                 "content", file_str)}
+##     f) {struct ("type", "graphic", ...
+##                 "content", file_str)}
+##     g) {struct ("type", "html", ...
+##                 "content", html_str)}
+##     h) {struct ("type", "latex", ...
+##                 "content", latex_str)}
+##     i) {struct ("type", "text", ...
+##                 "content", text_str)}
+##
+##   Option i) might contain:
+##
+##     * Italic "_", bold "*", and monospaced "|" text
+##     * Inline "$" and block "$$" LaTeX math
+##     * Links
+##     * Trademark symbols
 ##
 
 p_content = cell ();
@@ -466,7 +581,7 @@ for i = find (diff(idx) > 1)
 
   ## Octave code (two leading spaces)
   if (all (cellfun (@(c) strncmp (char (c), "  ", 2), block)))
-    p_content{end+1}.type = "octave_code";
+    p_content{end+1}.type = "preformatted_code";
     block = cellfun(@(c) cellstr (c(3:end)), block);
     p_content{end}.content = strjoin (block, "\n");
     continue;
@@ -554,8 +669,8 @@ for i = find (diff(idx) > 1)
     ## Remaining normal text or markups belonging to normal text
     ## that are handled while output generation:
     ##
-    ## * Italic, bold, and monospaced text
-    ## * Inline and block LaTeX
+    ## * Italic "_", bold "*", and monospaced "|" text
+    ## * Inline "$" and block "$$" LaTeX math
     ## * Links
     ## * Trademark symbols
     ##
@@ -620,7 +735,7 @@ for i = 1:length(doc_struct.body)
   switch (doc_struct.body{i}.type)
     case "code"
       if (options.showCode)
-        r = doc_struct.body{i}.code_range;
+        r = doc_struct.body{i}.lines;
         code_str = strtrim (strjoin (doc_struct.m_source(r(1):r(2)), "\n"));
         html_content = [html_content, "<pre class=\"oct-code\">", ...
           code_str, "</pre>"];
@@ -648,7 +763,7 @@ for i = 1:length(doc_struct.body)
               elem.content, "\" alt=\"", ...
               elem.content, "\">\n"];
           case "include"
-          case "octave_code"
+          case "preformatted_code"
             html_content = [html_content, "<pre class=\"pre-code\">", ...
               elem.content, "</pre>\n"];
           case "preformatted_text"
