@@ -298,13 +298,7 @@ if (options.evalCode)
   doc_struct = eval_code (doc_struct, options);
 endif
 
-out_file = doc_struct;
-
-#if (strcmpi (options.format, "latex"))
-#  create_latex (ifile, ofile, options);
-#elseif strcmpi(options.format, "html")
-#  create_html (doc_struct, options);
-#endif
+out_file = create_output (doc_struct, options);
 
 endfunction
 
@@ -627,13 +621,18 @@ endfunction
 
 
 
-function create_html (doc_struct, options)
-html_head = ["<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n", ...
-  "<title>", doc_struct.title, "</title>\n", ...
-  "<script type=\"text/javascript\" async ", ...
-  "src=\"https://cdn.mathjax.org/mathjax/latest/MathJax.js", ...
-  "?config=TeX-MML-AM_CHTML\">\n", ...
-  "</script>\n</head>\n<body>\n"];
+function ofile = create_output (doc_struct, options)
+formatter = [];
+switch (options.format)
+  case "html"
+    formatter = @__publish_html_output__;
+    ## Reset HTML toc counter
+    formatter ("init", doc_struct);
+  case "latex"
+    formatter = @__publish_latex_output__;
+endswitch
+
+content = formatter ("header", doc_struct);
 
 html_fmatter = "";
 html_toc = "<h2>Contents</h2>\n<ul>\n";
@@ -649,7 +648,6 @@ if (! isempty (doc_struct.intro))
   endfor
 endif
 
-node_counter = 1;
 html_content = "";
 for i = 1:length(doc_struct.body)
   switch (doc_struct.body{i}.type)
@@ -739,73 +737,6 @@ html_foot = ["\n", ...
 
 endfunction
 
-function create_latex (ifile, ofile, options)
-  latex_preamble = "\
-\\documentclass[a4paper,12pt]{article}\n\
-\\usepackage{listings}\n\
-\\usepackage{graphicx}\n\
-\\usepackage{color}\n\
-\\usepackage[T1]{fontenc}\n\
-\\definecolor{lightgray}{rgb}{0.9,0.9,0.9}\n";
-
-  listing_source_option = "\
-\\lstset{\n\
-language = Octave,\n\
-basicstyle =\\footnotesize,\n\
-numbers = left,\n\
-numberstyle = \\footnotesize,\n\
-backgroundcolor=\\color{lightgray},\n\
-frame=single,\n\
-tabsize=2,\n\
-breaklines=true}\n";
-
-  listing_exec_option = "\
-\\lstset{\n\
-language = Octave,\n\
-basicstyle =\\footnotesize,\n\
-numbers = none,\n\
-backgroundcolor=\\color{white},\n\
-frame=none,\n\
-tabsize=2,\n\
-breaklines=true}\n";
-
-  if options.showCode
-    section1_title = strcat ("\\section*{Source code: \\texttt{", ifile, "}}\n");
-    source_code    = strcat ("\\lstinputlisting{", ifile, "}\n");
-  else
-    section1_title = "";
-    source_code    = "";
-  endif
-  
-  if options.evalCode
-    section2_title = "\\section*{Execution results}\n";
-    oct_command    = strcat ("octave> ", ifile(1:end-2), "\n");
-    script_result = exec_script (ifile);
-  else
-    section2_title = "";
-    oct_command    = "";
-    script_result  = "";
-  endif
-
-  [section3_title, disp_fig] = exec_print (ifile, options);
-
-  final_document = strcat (latex_preamble, listing_source_option, 
-                           "\\begin{document}\n", 
-                           section1_title, source_code, 
-                           section2_title, listing_exec_option,
-                           "\\begin{lstlisting}\n",
-                           oct_command, script_result,
-                           "\\end{lstlisting}\n",
-                           section3_title,
-                           "\\begin{center}\n",
-                           disp_fig,
-                           "\\end{center}\n",
-                           "\\end{document}");
-
-  fid = fopen (ofile, "w");
-  fputs(fid, final_document);
-  fclose(fid);
-endfunction
 
 
 function doc_struct = eval_code (doc_struct, options)
