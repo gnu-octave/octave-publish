@@ -285,111 +285,26 @@ doc_struct.body = cell ();
 doc_struct.m_source = deblank (read_file_to_cellstr (file));
 doc_struct.m_source_file_name = file;
 
+## Split code and paragraphs, find formatting
 doc_struct = parse_m_source (doc_struct);
 
-##
-## Start 3rd level code evaluation
-##
-
-## Neccessary as the code does not run interactively
-page_screen_output (0, "local");
-
+## Create output directory
 [mkdir_stat, mkdir_msg] = mkdir (options.outputDir);
 if (mkdir_stat != 1)
   error ("publish: cannot create output directory. %s", mkdir_msg);
 endif
 
-## Remember previously opened figures
-fig_ids = findall (0, "type", "figure");
-[~,fig_name] = fileparts (doc_struct.m_source_file_name);
-fig_num = 1;
-fig_list = struct ();
-
-## Evaluate code, that does not appear in the output.
 if (options.evalCode)
-  eval_code (options.codeToEvaluate);
-  ## Create a new figure, if there are existing plots
-  if (! isempty (fig_ids) && options.useNewFigure)
-    figure ();
-  endif
+  doc_struct = eval_code (doc_struct, options);
 endif
-for i = 1:length(doc_struct.body)
-  if (strcmp (doc_struct.body{i}.type, "code"))
-    if (options.evalCode)
-      r = doc_struct.body{i}.lines;
-      code_str = strjoin (doc_struct.m_source(r(1):r(2)), "\n");
-      if (options.catchError)
-        try
-          doc_struct.body{i}.output = eval_code (code_str);
-         catch err
-          doc_struct.body{i}.output = ["error: ", err.message, ...
-            "\n\tin:\n\n", doc_struct.body{i}.code];
-        end_try_catch
-      else
-        doc_struct.body{i}.output = eval_code (code_str);
-      endif
-
-      ## Check for newly created figures ...
-      fig_ids_new = setdiff (findall (0, "type", "figure"), fig_ids);
-      ## ... and save them
-      for j = 1:length(fig_ids_new)
-        drawnow ();
-        if (isempty (get (fig_ids_new(j), "children")))
-          continue;
-        endif
-        fname = [fig_name, "-", num2str(fig_num), ".", options.imageFormat];
-        print (fig_ids_new(j), [options.outputDir, filesep(), fname], ...
-          ["-d", options.imageFormat], "-color");
-        fig_num++;
-        delete (fig_ids_new(j));
-        fname = {fname};
-        if (isfield (fig_list, num2str (i)))
-          fname = [getfield(fig_list, num2str (i)), fname];
-        endif
-        fig_list = setfield (fig_list, num2str (i), fname);
-        ## Create a new figure, if there are existing plots
-        if (isempty (setdiff (findall (0, "type", "figure"), fig_ids)) ...
-            &&! isempty (fig_ids) && options.useNewFigure)
-          figure ();
-        endif
-      endfor
-
-      ## Truncate output to desired length
-      if (options.maxOutputLines < length (doc_struct.body{i}.output))
-        doc_struct.body{i}.output = ...
-          doc_struct.body{i}.output(1:options.maxOutputLines);
-      endif
-      doc_struct.body{i}.output = strjoin (doc_struct.body{i}.output, "\n");
-    endif
-  endif
-endfor
-
-## Close any by publish opened figures
-delete (setdiff (findall (0, "type", "figure"), fig_ids));
-
-## Insert figures to document
-fig_code_blocks = fieldnames (fig_list);
-for i = 1:length(fig_code_blocks)
-  elem.type = "paragraph";
-  elem.title = "";
-  fnames = getfield (fig_list, fig_code_blocks{i});
-  for j = 1:length(fnames)
-    elem.content{j} = struct ("type", "graphic", "content", fnames{j});
-  endfor
-  ## Compute index, where the figure(s) has to be inserterd,
-  ## changes with i!
-  j = str2num (fig_code_blocks{i}) + i - 1;
-  doc_struct.body = [doc_struct.body(1:j), elem, doc_struct.body(j+1:end)];
-  elem = [];
-endfor
 
 out_file = doc_struct;
 
-if (strcmpi (options.format, "latex"))
-  create_latex (ifile, ofile, options);
-elseif strcmpi(options.format, "html")
-  create_html (doc_struct, options);
-endif
+#if (strcmpi (options.format, "latex"))
+#  create_latex (ifile, ofile, options);
+#elseif strcmpi(options.format, "html")
+#  create_html (doc_struct, options);
+#endif
 
 endfunction
 
@@ -406,12 +321,13 @@ function doc_struct = parse_m_source (doc_struct)
 ##     a) {struct ("type", "code", ...
 ##                 "lines", [a, b], ...
 ##                 "output", [])}
-##     b) {struct ("type", "paragraph", ...
-##                 "title", str, ...
-##                 "content", {..})}
-##     c) {struct ("type", "paragraph_no_break", ...
-##                 "title", str, ...
-##                 "content", {..})}
+##     b) {struct ("type", "section", ...
+##                 "content", title_str)}
+##     c) {struct ("type", "section_no_break", ...
+##                 "content", title_str)}
+##
+##   Second parsing level is invoked for the paragraph contents, resulting
+##   in more elements for doc_struct.body.
 ##
 
 ## If there is nothing to parse
@@ -486,17 +402,24 @@ code_end_idx(idx) = [];
 ## Try to find a document title and introduction text
 ##   1. First paragraph must start in first line
 ##   2. Second paragraph must start before any code
-has_title = false;
+title_offset = 0;
+# TODO: is_head??
 if ((! isempty (par_start_idx)) && (par_start_idx(1) == 1) ...
     && ((isempty (code_start_idx))
         || ((length (par_start_idx) > 1)
             && (par_start_idx(2) < code_start_idx(1)))))
-  has_title = true;
+  doc_struct.title = doc_struct.m_source{1};
+  doc_struct.title = doc_struct.title(4:end);
+  content = doc_struct.m_source(2:par_end_idx(1));
+  ## Strip leading "# "
+  content = cellfun(@(c) cellstr (c(3:end)), content);
+  doc_struct.intro = parse_paragraph_content (content);
+  title_offset = 1;
 endif
 
 ## Add non-empty paragraphs and code to doc_struct
 j = 1;
-for i = 1:length(par_start_idx)
+for i = (1 + title_offset):length(par_start_idx)
   ## Add code first
   while ((j <= length(code_start_idx))
     && (par_start_idx(i) > code_start_idx(j)))
@@ -506,32 +429,25 @@ for i = 1:length(par_start_idx)
     j++;
   endwhile
 
-  type_str = "paragraph";
+  type_str = "section";
   title_str = doc_struct.m_source{par_start_idx(i)};
-  content = doc_struct.m_source(par_start_idx(i) + 1:par_end_idx(i));
-  ## Strip leading "# "
-  content = cellfun(@(c) cellstr (c(3:end)), content);
   if (is_head (doc_struct.m_source(par_start_idx(i))))
     title_str = title_str(4:end);
   else
-    type_str = "paragraph_no_break";
+    type_str = "section_no_break";
     title_str = title_str(5:end);
   endif
-  ## Append, if paragraph title or content is given
-  if (! isempty (title_str) ...
-      || ! (isempty (content) || all (cellfun (@isempty, content))))
+  ## Append, if paragraph title is given
+  if (! isempty (title_str))
     doc_struct.body{end + 1}.type = type_str;
-    doc_struct.body{end}.title = title_str;
-    doc_struct.body{end}.content = parse_paragraph_content (content);
+    doc_struct.body{end}.content = title_str;
   endif
-endfor
 
-## Promote first paragraph to title and introduction text
-if (has_title)
-  doc_struct.title = doc_struct.body{1}.title;
-  doc_struct.intro = doc_struct.body{1}.content;
-  doc_struct.body(1) = [];
-endif
+  content = doc_struct.m_source(par_start_idx(i) + 1:par_end_idx(i));
+  ## Strip leading "# "
+  content = cellfun(@(c) cellstr (c(3:end)), content);
+  doc_struct.body = [doc_struct.body, parse_paragraph_content(content)];
+endfor
 
 endfunction
 
@@ -540,9 +456,9 @@ endfunction
 function [p_content] = parse_paragraph_content (content)
 ## PARSE_PARAGRAPH_CONTENT second parsing level
 ##
-##   The result of parsing paragraph i is written to
-##   doc_struct.body{i}.content, which then contains a
-##   cell vector of structs, either of
+##   Parses the content of a paragraph (without potential title) and
+##   returns a cell vector of structs, that can be appended to
+##   doc_struct.body, either of
 ##
 ##     a) {struct ("type", "preformatted_code", ...
 ##                 "content", code_str)}
@@ -572,6 +488,10 @@ function [p_content] = parse_paragraph_content (content)
 ##
 
 p_content = cell ();
+
+if (isempty (content))
+  return;
+endif
 
 ## Split into blocks seperated by empty lines
 idx = [0, find(cellfun (@isempty, content)), length(content) + 1];
@@ -745,7 +665,7 @@ for i = 1:length(doc_struct.body)
           doc_struct.body{i}.output, "</pre>"];
       endif
     ## Note: Matlab R2016a treats both as new section heads
-    case {"paragraph", "paragraph_no_break"}
+    case {"section", "section_no_break"}
       if (! isempty (doc_struct.body{i}.title))
         html_content = [html_content, "<h2><a name=\"node", ...
           num2str(node_counter), "\">", ...
@@ -888,9 +808,104 @@ breaklines=true}\n";
 endfunction
 
 
+function doc_struct = eval_code (doc_struct, options)
+## EVAL_CODE Thrid level parsing
+##
+##   Generates the output of the script code and takes care of generated
+##   figures.
+##
 
-function ___cstr___ = eval_code (___code___);
-## EVAL_CODE evaluates a given string with Octave code in an extra
+## Neccessary as the code does not run interactively
+page_screen_output (0, "local");
+
+## Remember previously opened figures
+fig_ids = findall (0, "type", "figure");
+[~,fig_name] = fileparts (doc_struct.m_source_file_name);
+fig_num = 1;
+fig_list = struct ();
+
+## Evaluate code, that does not appear in the output.
+eval_code_helper (options.codeToEvaluate);
+
+## Create a new figure, if there are existing plots
+if (! isempty (fig_ids) && options.useNewFigure)
+  figure ();
+endif
+
+for i = 1:length(doc_struct.body)
+  if (strcmp (doc_struct.body{i}.type, "code"))
+    r = doc_struct.body{i}.lines;
+    code_str = strjoin (doc_struct.m_source(r(1):r(2)), "\n");
+    if (options.catchError)
+      try
+        doc_struct.body{i}.output = eval_code_helper (code_str);
+       catch err
+        doc_struct.body{i}.output = ["error: ", err.message, ...
+          "\n\tin:\n\n", doc_struct.body{i}.code];
+      end_try_catch
+    else
+      doc_struct.body{i}.output = eval_code_helper (code_str);
+    endif
+
+    ## Check for newly created figures ...
+    fig_ids_new = setdiff (findall (0, "type", "figure"), fig_ids);
+    ## ... and save them
+    for j = 1:length(fig_ids_new)
+      drawnow ();
+      if (isempty (get (fig_ids_new(j), "children")))
+        continue;
+      endif
+      fname = [fig_name, "-", num2str(fig_num), ".", options.imageFormat];
+      print (fig_ids_new(j), [options.outputDir, filesep(), fname], ...
+        ["-d", options.imageFormat], "-color");
+      fig_num++;
+      delete (fig_ids_new(j));
+      fname = {fname};
+      if (isfield (fig_list, num2str (i)))
+        fname = [getfield(fig_list, num2str (i)), fname];
+      endif
+      fig_list = setfield (fig_list, num2str (i), fname);
+      ## Create a new figure, if there are existing plots
+      if (isempty (setdiff (findall (0, "type", "figure"), fig_ids)) ...
+          &&! isempty (fig_ids) && options.useNewFigure)
+        figure ();
+      endif
+    endfor
+
+    ## Truncate output to desired length
+    if (options.maxOutputLines < length (doc_struct.body{i}.output))
+      doc_struct.body{i}.output = ...
+        doc_struct.body{i}.output(1:options.maxOutputLines);
+    endif
+    doc_struct.body{i}.output = strjoin (doc_struct.body{i}.output, "\n");
+  endif
+endfor
+
+## Close any by publish opened figures
+delete (setdiff (findall (0, "type", "figure"), fig_ids));
+
+## Insert figures to document
+fig_code_blocks = fieldnames (fig_list);
+for i = 1:length(fig_code_blocks)
+  elem.type = "section";
+  elem.title = "";
+  fnames = getfield (fig_list, fig_code_blocks{i});
+  for j = 1:length(fnames)
+    elem.content{j} = struct ("type", "graphic", "content", fnames{j});
+  endfor
+  ## Compute index, where the figure(s) has to be inserterd,
+  ## changes with i!
+  j = str2num (fig_code_blocks{i}) + i - 1;
+  doc_struct.body = [doc_struct.body(1:j), elem, doc_struct.body(j+1:end)];
+  elem = [];
+endfor
+
+endfunction
+
+
+
+function ___cstr___ = eval_code_helper (___code___);
+## EVAL_CODE_HELPER evaluates a given string with Octave code in an extra
 ##   temporary context and returns a cellstring with the eval output
 
 ## TODO: potential conflicting variables sourrounded by "___"
@@ -915,28 +930,6 @@ save (___context___);
 endfunction
 
 
-
-function [section3_title, disp_fig] = exec_print (ifile, options)
-  figures = findall (0, "type", "figure");
-  section3_title = "";
-  disp_fig       = "";
-  if (!isempty (figures))
-    for nfig = 1:length (figures)
-      figure (figures(nfig));
-      print (sprintf ("%s%d.%s", ifile(1:end-2), nfig, options.imageFormat),
-             sprintf ("-d%s", options.imageFormat), "-color");
-      if (strcmpi (options.format, "html"));
-        section3_title = "<h2>Generated graphics</h2>\n";
-        disp_fig = strcat (disp_fig, "<img src=\"", ifile(1:end-2), 
-                           sprintf ("%d", nfig), ".", options.imageFormat, "\"/>");
-      elseif (strcmpi (options.format, "latex"))
-        section3_title = "\\section*{Generated graphics}\n";
-        disp_fig = strcat (disp_fig, "\\includegraphics[scale=0.6]{", ifile(1:end-2), 
-                           sprintf("%d",nfig), "}\n");
-      endif
-    endfor
-  endif
-endfunction
 
 %!test
 %! cases = dir ("test_script*.m");

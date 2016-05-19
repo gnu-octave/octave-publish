@@ -271,7 +271,7 @@ plot (x,y)
 #
 #
 #
-#  and continued
+# and continued
 #
 #
 #
