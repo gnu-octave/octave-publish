@@ -173,13 +173,13 @@ plot (x,y)
 %% Links
 % <https://www.gnu.org/software/octave>
 % <https://www.gnu.org/software/octave GNU Octave Homepage>
-% <octave:FUNCTION DISPLAYED_TEXT>
+% <octave:FUNCTION DISPLAYED TEXT>
 %
 
 ## Links
 # <https://www.gnu.org/software/octave>
 # <https://www.gnu.org/software/octave GNU Octave Homepage>
-# <octave:FUNCTION DISPLAYED_TEXT>
+# <octave:FUNCTION DISPLAYED TEXT>
 #
 
 %% HTML Markup
@@ -203,17 +203,21 @@ plot (x,y)
 
 %% LaTeX Markup
 % <latex>
+% \begin{equation}
 % \begin{pmatrix}
 % 1 & 2 \\ 3 & 4
 % \end{pmatrix}
+% \end{equation}
 % </latex>
 %
 
 ## LaTeX Markup
 # <latex>
+# \begin{equation}
 # \begin{pmatrix}
 # 1 & 2 \\ 3 & 4
 # \end{pmatrix}
+# \end{equation}
 # </latex>
 #
 
