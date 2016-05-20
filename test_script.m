@@ -84,24 +84,32 @@ plot (x,y)
 %
 % * BULLETED ITEM 1
 % * BULLETED ITEM 2
+% * BULLETED ITEM 3 *BOLD*
+% * BULLETED ITEM 4 <http://www.someURL.com>
 %
 
 ## Bulleted List
 #
 # * BULLETED ITEM 1
 # * BULLETED ITEM 2
+# * BULLETED ITEM 3 *BOLD*
+# * BULLETED ITEM 4 <http://www.someURL.com>
 #
 
 %% Numbered List
 %
 % # NUMBERED ITEM 1
 % # NUMBERED ITEM 2
+% # NUMBERED ITEM 3 *BOLD*
+% # NUMBERED ITEM 4 <http://www.someURL.com>
 %
 
 ## Numbered List
 #
 # # NUMBERED ITEM 1
 # # NUMBERED ITEM 2
+# # NUMBERED ITEM 3 *BOLD*
+# # NUMBERED ITEM 4 <http://www.someURL.com>
 #
 
 %%
@@ -132,12 +140,12 @@ plot (x,y)
 
 %% External File Content
 % 
-% <include>fname.m</include>
+% <include>test_script_code_only.m</include>
 %
 
 ## External File Content
 #
-# <include>fname.m</include>
+# <include>test_script_code_only.m</include>
 #
 
 %% External Graphic
@@ -164,11 +172,13 @@ plot (x,y)
 
 %% Links
 % <https://www.gnu.org/software/octave>
+% <https://www.gnu.org/software/octave GNU Octave Homepage>
 % <octave:FUNCTION DISPLAYED_TEXT>
 %
 
 ## Links
 # <https://www.gnu.org/software/octave>
+# <https://www.gnu.org/software/octave GNU Octave Homepage>
 # <octave:FUNCTION DISPLAYED_TEXT>
 #
 

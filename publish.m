@@ -537,8 +537,11 @@ function [p_content] = parse_paragraph_content (content)
     ## Include <include>fname.m</include>
     if (! isempty ([~,~,~,~,fname] = regexpi (strjoin (block, ""), ...
                                               '^<include>(.*)<\/include>$')))
-      p_content{end+1}.type = "include";
-      p_content{end}.content = strtrim ((fname{1}){1});
+      ## Includes result in preformatted code
+      p_content{end+1}.type = "preformatted_code";
+      include_code = read_file_to_cellstr (strtrim ((fname{1}){1}));
+      p_content{end}.content = strjoin (include_code, "\n");
+      
       continue;
     endif
     
@@ -624,7 +627,7 @@ endfunction
 
 
 function ofile = create_output (doc_struct, options)
-  ## CREATE_OUTPUT 
+  ## CREATE_OUTPUT creates the desired output file
   ##
 
   formatter = [];
@@ -647,7 +650,7 @@ function ofile = create_output (doc_struct, options)
   content = formatter ("header", title_str, ...
     format_output (doc_struct.intro, formatter, options), ...
     get_toc (doc_struct.body));
-  #TODO: content = [content, format_output(doc_struct.body, formatter, options)];
+  content = [content, format_output(doc_struct.body, formatter, options)];
   content = [content, formatter("footer", strjoin (doc_struct.m_source, "\n"))];
 
   ## Write file
@@ -676,7 +679,12 @@ endfunction
 
 
 function str = format_output (cstr, formatter, options)
-  ## FORMAT_OUTPUT 
+  ## FORMAT_OUTPUT steps through all blocks (doc_struct.intro or
+  ##   doc_struct.body) in cstr and produces a single result string
+  ##   with the source code in the desired output format.
+  ##
+  ##   formatter has the only knowlegde how to enforce the target format
+  ##   and produces for each block the necessary target format source string.
   ##
 
   str = "";
@@ -687,30 +695,48 @@ function str = format_output (cstr, formatter, options)
           str = [str, formatter(cstr{i}.type, cstr{i}.content)];
         endif
         if (options.evalCode)
-          str = [str, formatter("code_output", cstr{i}.content)];
+          str = [str, formatter("code_output", cstr{i}.output)];
         endif
       case "text"
-        tstr = cstr{i}.content;
-        ## Bold
-        tstr = regexprep (tstr, '\*([^*$]*)\*', formatter ("bold", "$1"));
-        ## Italic
-        tstr = regexprep (tstr, '_([^_$]*)_', formatter ("italic", "$1"));
-        ## Monospaced
-        tstr = regexprep (tstr, '|([^|$]*)|', formatter ("monospaced", "$1"));
-        ## Links "<http://www.someurl.com>"
-        tstr = regexprep (tstr, '<(\S[^\s<>]*)>', ...
-          formatter ("link", "$1", "$1"));
-        ## Links "<http://www.someurl.com TEXT>"
-        tstr = regexprep (tstr, '<(\S[^\s<>]*) *([^<>$\n]*)>', ...
-          formatter ("link", "$1", "$2"));
-        ## Replace special symbols
-        tstr = strrep (tstr, "(TM)", formatter("TM"));
-        tstr = strrep (tstr, "(R)", formatter("R"));
-        str = [str, formatter(cstr{i}.type, tstr)];
+        str = [str, formatter(cstr{i}.type, ...
+          format_text (cstr{i}.content, formatter))];
+      case {"bulleted_list", "numbered_list"}
+        items = cellfun (@(str) format_text(str, formatter), ...
+          cstr{i}.content, "UniformOutput", false);
+        str = [str, formatter(cstr{i}.type, items)];
       otherwise
         str = [str, formatter(cstr{i}.type, cstr{i}.content)];
     endswitch
   endfor
+endfunction
+
+
+
+function str = format_text (str, formatter)
+  ## FORMAT_TEXT formats inline formats in strings.
+  ##   These are: links, bold, italic, monospaced, (TM), (R)
+  ##
+
+  ## Links "<http://www.someurl.com>"
+  str = regexprep (str, '<(\S{3,}[^\s<>]*)>', ...
+    formatter ("link", "$1", "$1"));
+  ## Links "<octave:Function TEXT>"
+  ## TODO: better pointer to the function documentation
+  str = regexprep (str, '<octave:([^\s<>]*) *([^<>$\n]*)>', ...
+    formatter ("link", ["https://www.gnu.org/software/octave/", ...
+      "doc/interpreter/Function-Index.html"], "$2"));
+  ## Links "<http://www.someurl.com TEXT>"
+  str = regexprep (str, '<(\S{3,}[^\s<>]*) *([^<>$\n]*)>', ...
+    formatter ("link", "$1", "$2"));
+  ## Bold
+  str = regexprep (str, '\*([^*$]*)\*', formatter ("bold", "$1"));
+  ## Italic
+  str = regexprep (str, '_([^_$]*)_', formatter ("italic", "$1"));
+  ## Monospaced
+  str = regexprep (str, '\|([^|$]*)\|', formatter ("monospaced", "$1"));
+  ## Replace special symbols
+  str = strrep (str, "(TM)", formatter("TM"));
+  str = strrep (str, "(R)", formatter("R"));
 endfunction
 
 
@@ -763,16 +789,25 @@ function doc_struct = eval_code (doc_struct, options)
           continue;
         endif
         fname = [fig_name, "-", num2str(fig_num), ".", options.imageFormat];
-        ## TODO: -Sxsize,ysize, options.maxWidth, options.maxHeight
-        print (fig_ids_new(j), [options.outputDir, filesep(), fname], ...
-          ["-d", options.imageFormat], "-color");
+        print_opts = {fig_ids_new(j), ...
+          [options.outputDir, filesep(), fname], ...
+          ["-d", options.imageFormat], "-color"};
+        if (! isempty (options.maxWidth) && ! isempty (options.maxHeight))
+          print_opts{end + 1} = ["-S", num2str(options.maxWidth), ...
+            num2str(options.maxHeight)];
+        elseif (! isempty (options.maxWidth) || ! isempty (options.maxWidth))
+          warning (["publish: specify both options.maxWidth ", ...
+            "and options.maxWidth"]);
+        endif
+        print (print_opts{:});
         fig_num++;
         delete (fig_ids_new(j));
-        fname = {fname};
+        fig_elem = cell ();
+        fig_elem{1} = struct ("type", "graphic", "content", fname);
         if (isfield (fig_list, num2str (i)))
-          fname = [getfield(fig_list, num2str (i)), fname];
+          fig_elem = [getfield(fig_list, num2str (i)), fig_elem];
         endif
-        fig_list = setfield (fig_list, num2str (i), fname);
+        fig_list = setfield (fig_list, num2str (i), fig_elem);
         ## Create a new figure, if there are existing plots
         if (isempty (setdiff (findall (0, "type", "figure"), fig_ids)) ...
             &&! isempty (fig_ids) && options.useNewFigure)
@@ -794,18 +829,13 @@ function doc_struct = eval_code (doc_struct, options)
 
   ## Insert figures to document
   fig_code_blocks = fieldnames (fig_list);
+  body_offset = 0;
   for i = 1:length(fig_code_blocks)
-    elem.type = "section";
-    elem.title = "";
-    fnames = getfield (fig_list, fig_code_blocks{i});
-    for j = 1:length(fnames)
-      elem.content{j} = struct ("type", "graphic", "content", fnames{j});
-    endfor
-    ## Compute index, where the figure(s) has to be inserterd,
-    ## changes with i!
-    j = str2num (fig_code_blocks{i}) + i - 1;
-    doc_struct.body = [doc_struct.body(1:j), elem, doc_struct.body(j+1:end)];
-    elem = [];
+    elems = getfield (fig_list, fig_code_blocks{i});
+    ## Compute index, where the figure(s) has to be inserterd
+    j = str2num (fig_code_blocks{i}) + body_offset;
+    doc_struct.body = [doc_struct.body(1:j), elems, doc_struct.body(j+1:end)];
+    body_offset = body_offset + length (elems);
   endfor
 endfunction
 
