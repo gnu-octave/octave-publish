@@ -162,7 +162,7 @@ function out_file = publish (file, varargin)
     options.format = validatestring (options.format, ...
       {"html", "doc", "latex", "ppt", "xml", "pdf"});
     ## TODO: implement remaining formats
-    if (! any (strcmp (options.format, {"html", "latex"})))
+    if (any (strcmp (options.format, {"doc", "ppt", "xml"})))
       error ("publish: Output format currently not supported");
     endif
   endif
@@ -203,7 +203,8 @@ function out_file = publish (file, varargin)
       case "latex"
         options.imageFormat = "epsc2";
       case "pdf"
-        options.imageFormat = "bmp";
+        ## Note: Matlab R2016a uses .bmp here, but this makes more sense
+        options.imageFormat = "epsc2";
       otherwise
         options.imageFormat = "png";
     endswitch
@@ -636,7 +637,7 @@ function ofile = create_output (doc_struct, options)
     case "html"
       formatter = @__publish_html_output__;
       ofile_ext = ".html";
-    case "latex"
+    case {"latex", "pdf"}
       formatter = @__publish_latex_output__;
       ofile_ext = ".tex";
   endswitch
@@ -659,6 +660,19 @@ function ofile = create_output (doc_struct, options)
   fid = fopen (ofile, "w");
   fputs (fid, content);
   fclose (fid);
+
+  ## Compile LaTeX, if compiler found
+  if (strcmp (options.format, "pdf"))
+    [status, ~] = system ("pdflatex --version");
+    if (status == 0)
+      [~,ofile,ofile_ext] = fileparts (ofile);
+      ## Fix pdflatex problems, do it twice
+      for i = 1:2
+        system (["cd ", options.outputDir," && pdflatex ", ...
+          [ofile, ofile_ext]]);
+      endfor
+    endif
+  endif
 endfunction
 
 
@@ -774,7 +788,7 @@ function doc_struct = eval_code (doc_struct, options)
           doc_struct.body{i}.output = eval_code_helper (code_str);
          catch err
           doc_struct.body{i}.output = ["error: ", err.message, ...
-            "\n\tin:\n\n", doc_struct.body{i}.code];
+            "\n\tin:\n\n", code_str];
         end_try_catch
       else
         doc_struct.body{i}.output = eval_code_helper (code_str);
@@ -788,7 +802,13 @@ function doc_struct = eval_code (doc_struct, options)
         if (isempty (get (fig_ids_new(j), "children")))
           continue;
         endif
-        fname = [fig_name, "-", num2str(fig_num), ".", options.imageFormat];
+        fname = [fig_name, "-", num2str(fig_num), "."];
+        ## Avoid using extensions, that e.g. pdflatex cannot handle.
+        if (strncmp (options.imageFormat, "eps", 3))
+          fname = [fname, "eps"];
+        else
+          fname = [fname, options.imageFormat];
+        endif
         print_opts = {fig_ids_new(j), ...
           [options.outputDir, filesep(), fname], ...
           ["-d", options.imageFormat], "-color"};
