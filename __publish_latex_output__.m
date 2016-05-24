@@ -51,9 +51,10 @@ function outstr = handle_header (title_str, intro_str, toc_cstr)
     "tabsize=2,\n", ...
     "breaklines=true}\n"];
 
+  ## Escape "_" in title_str, as many file names contain it
   latex_head = ["\n\n", ...
     "\\begin{document}\n\n", ...
-    "\\section{", title_str,"}\n\n", ...
+    "\\section{", escape_chars(title_str),"}\n\n", ...
     "\\tableofcontents\n\n"];
     
   outstr = [publish_comment, latex_preamble, listings_option, latex_head];
@@ -147,4 +148,9 @@ endfunction
 
 function outstr = handle_R ()
   outstr = "\\textregistered";
+endfunction
+
+function str = escape_chars (str)
+  ## Escape "_"
+  str = regexprep (str, '([^\\]|^)(_)', "$1\\_");
 endfunction
