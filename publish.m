@@ -18,104 +18,162 @@
 ## <http://www.gnu.org/licenses/>.
 
 ## -*- texinfo -*-
-## @deftypefn {Function File} {} publish (@var{filename})
-## @deftypefnx {Function File} {} publish (@var{filename}, @var{options})
-## Produces latex reports from scripts.
+## @deftypefn {} {} publish (@var{filename})
+## @deftypefnx {} {} publish (@var{filename}, @var{output_format})
+## @deftypefnx {} {} publish (@var{filename}, @var{option1}, @var{value1}, @dots{})
+## @deftypefnx {} {} publish (@var{filename}, @var{options})
+## @deftypefnx {} {@var{output_file} =} publish (@var{filename}, @dots{})
 ##
-## @example
-## publish (@var{my_script})
-## @end example
+## Generate reports from Octave script files in several output formats.
 ##
-## @noindent
-## where the argument is a string that contains the file name of
-## the script we want to report.
-##
-## If two arguments are given, they are interpreted as follows.
-##
-## @example
-## publish (@var{filename}, [@var{option}, @var{value}, ...])
-## @end example
-##
-## @noindent
-## The following options are available:
-##
-## @itemize @bullet
-## @item format
-## 
-## the only available format values are the strings `latex' and
-## `html'.
-##
-## @item
-## imageFormat:
-##
-## string that specifies the image format, valid formats are `pdf',
-## `png', and `jpg'(or `jpeg').
-##
-## @item
-## showCode:
-##
-## boolean value that specifies if the source code will be included
-## in the report.
-##
-## @item
-## evalCode:
-##
-## boolean value that specifies if execution results will be included
-## in the report.
-## 
-## @end itemize
-##
-## Default @var{options}
-##
-## @itemize @bullet
-## @item format = latex
-##
-## @item imageFormat = pdf
-##
-## @item showCode =  1
-##
-## @item evalCode =  1
-##
-## @end itemize
-##
-## Remarks
-##
-## @itemize @bullet
-## @item Any additional non-valid field is removed without
-## notification.
-##
-## @item To include several figures in the resulting report you must
-## use figure with a unique number for each one of them.
-##
-## @item You do not have to save the figures manually, publish will
-## do it for you.
-##
-## @item The functions works only for the current path and no way ...
-## to specify other path is allowed.
-##
-## @end itemize
-##
-## Assume you have the script `myscript.m' which looks like
+## The generated reports consider Publishing Markup in comments,
+## which is explained in detail in the GNU Octave manual.  Assume the
+## following example, using some Publishing Markup, to be the content
+## of a script file @samp{example.m}:
 ##
 ## @example
 ## @group
-## x = 0:0.1:pi;
-## y = sin(x)
-## figure(1)
-## plot(x,y);
-## figure(2)
-## plot(x,y.^2);
+## %% Headline title
+## %
+## % Some *bold*, _italic_, or |monospaced| Text with
+## % a <http://www.octave.org link to GNU Octave>.
+## %
+##
+## # "Real" Octave commands to be evaluated
+## sombrero ()
+##
+## ## Octave comment style supported as well
+## #
+## # * Bulleted list item 1
+## # * Bulleted list item 2
+## #
+## # # Numbered list item 1
+## # # Numbered list item 2
 ## @end group
 ## @end example
 ##
-## You can then call publish with default @var{options}
-## 
+## To publish this script file, type @code{publish ("example.m")}.
+##
+## With only @var{filename} given, a HTML report is generated in a
+## subdirectory @samp{html} relative to the current working directory.
+## The Octave commands are evaluated in the current context and any
+## figures created while executing the script file are included in the
+## report.  All formatting syntax of @var{filename} is treated according
+## to the specified output format and included in the report.
+##
+## Using @code{publish (@var{filename}, @var{output_format})} is
+## equivalent to the function call using a structure
+##
 ## @example
-## publish("myscript")
+## @group
+## @var{options}.format = @var{output_format};
+## publish (@var{filename}, @var{options})
+## @end group
 ## @end example
+##
+## which is described below.  The same holds for using option-value-pairs
+##
+## @example
+## @group
+## @var{options}.@var{option1} = @var{value1};
+## publish (@var{filename}, @var{options})
+## @end group
+## @end example
+##
+## The structure @var{options} can have the following field names.  If a
+## field name is not specified, the default value is considered:
+##
+## @itemize @bullet
+## @item
+## @samp{format} --- Output format of the published script file, one of
+##
+## @samp{html} (default), @samp{doc}, @samp{latex}, @samp{ppt},
+## @samp{xml}, or @samp{pdf}.
+##
+## The output formats @samp{doc}, @samp{ppt}, and @samp{xml} are currently
+## not supported. To generate a @samp{doc} report, open a generated
+## @samp{html} report with your office suite.
+##
+## @item
+## @samp{outputDir} --- Full path string of a directory, where the generated
+## report will be located.  If no directory is given, the report is generated
+## in a subdirectory @samp{html} relative to the current working directory.
+##
+## @item
+## @samp{stylesheet} --- Not supported, only for Matlab compatibility.
+##
+## @item
+## @samp{createThumbnail} --- Not supported, only for Matlab compatibility.
+##
+## @item
+## @samp{figureSnapMethod} --- Not supported, only for Matlab compatibility.
+##
+## @item
+## @samp{imageFormat} --- Desired format for images produced, while
+## evaluating the code.  The allowed image formats depend on the output
+## format:
+##
+## @itemize @bullet
+## @item @samp{html} and @samp{xml} --- @samp{png} (default), any other
+## image format supported by Octave
+##
+## @item @samp{latex} --- @samp{epsc2} (default), any other image format
+## supported by Octave
+##
+## @item @samp{pdf} --- @samp{jpg} (default) or @samp{bmp}, note Matlab
+## uses  @samp{bmp} as default
+##
+## @item @samp{doc} or @samp{ppt} --- @samp{png} (default), @samp{jpg},
+## @samp{bmp}, or @samp{tiff}
+## @end itemize
+##
+## @item
+## @samp{maxHeight} and @samp{maxWidth} --- Maximum height (width) of the
+## produced images in pixels.  An empty value means no restriction.  Both
+## values have to be set, to work properly.
+##
+## @samp{[]} (default), integer value @geq{} 0
+##
+## @item
+## @samp{useNewFigure} --- Use a new figure window for figures created by
+## the evaluated code.  This avoids side effects with already opened figure
+## windows.
+##
+## @samp{true} (default) or @samp{false}
+##
+## @item
+## @samp{evalCode} --- Evaluate code of the Octave source file
+##
+## @samp{true} (default) or @samp{false}
+##
+## @item
+## @samp{catchError} --- Catch errors while code evaluation and continue
+##
+## @samp{true} (default) or @samp{false}
+##
+## @item
+## @samp{codeToEvaluate} --- Octave commands that should be evaluated prior
+## to publishing the script file.  These Octave commands do not appear in the
+## generated report.  This is useful for publishing function files.
+##
+## @item
+## @samp{maxOutputLines} --- Maximum number of shown output lines of the
+## code evaluation
+##
+## @samp{Inf} (default) or integer value > 0
+##
+## @item
+## @samp{showCode} --- Show the evaluated Octave commands in the generated
+## report
+##
+## @samp{true} (default) or @samp{false}
+## @end itemize
+##
+## The returned @var{output_file} is a string with the file name of the
+## generated report.
 ## @end deftypefn
 
-function out_file = publish (file, varargin)
+function output_file = publish (file, varargin)
   narginchk (1, Inf);
   nargoutchk (0, 1);
 
@@ -203,8 +261,8 @@ function out_file = publish (file, varargin)
       case "latex"
         options.imageFormat = "epsc2";
       case "pdf"
-        ## Note: Matlab R2016a uses .bmp here, but this makes more sense
-        options.imageFormat = "epsc2";
+        ## Note: Matlab R2016a uses bmp as default
+        options.imageFormat = "jpg";
       otherwise
         options.imageFormat = "png";
     endswitch
@@ -299,7 +357,7 @@ function out_file = publish (file, varargin)
     doc_struct = eval_code (doc_struct, options);
   endif
 
-  out_file = create_output (doc_struct, options);
+  output_file = create_output (doc_struct, options);
 endfunction
 
 
@@ -656,7 +714,8 @@ function ofile = create_output (doc_struct, options)
 
   ## Write file
   [~,ofile] = fileparts (doc_struct.m_source_file_name);
-  ofile = [options.outputDir, filesep(), ofile, ofile_ext];
+  ofile_name = [ofile, ofile_ext];
+  ofile = [options.outputDir, filesep(), ofile_name];
   fid = fopen (ofile, "w");
   fputs (fid, content);
   fclose (fid);
@@ -665,12 +724,7 @@ function ofile = create_output (doc_struct, options)
   if (strcmp (options.format, "pdf"))
     [status, ~] = system ("pdflatex --version");
     if (status == 0)
-      [~,ofile,ofile_ext] = fileparts (ofile);
-      ## Fix pdflatex problems, do it twice
-      for i = 1:2
-        system (["cd ", options.outputDir," && pdflatex ", ...
-          [ofile, ofile_ext]]);
-      endfor
+      system (["cd ", options.outputDir," && pdflatex ", ofile_name]);
     endif
   endif
 endfunction
@@ -802,13 +856,7 @@ function doc_struct = eval_code (doc_struct, options)
         if (isempty (get (fig_ids_new(j), "children")))
           continue;
         endif
-        fname = [fig_name, "-", num2str(fig_num), "."];
-        ## Avoid using extensions, that e.g. pdflatex cannot handle.
-        if (strncmp (options.imageFormat, "eps", 3))
-          fname = [fname, "eps"];
-        else
-          fname = [fname, options.imageFormat];
-        endif
+        fname = [fig_name, "-", num2str(fig_num), ".", options.imageFormat];
         print_opts = {fig_ids_new(j), ...
           [options.outputDir, filesep(), fname], ...
           ["-d", options.imageFormat], "-color"};
