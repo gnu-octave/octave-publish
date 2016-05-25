@@ -412,7 +412,7 @@ function doc_struct = parse_m_source (doc_struct)
     doc_struct.body{end}.content = strtrim (strjoin (...
       doc_struct.m_source(1:length(doc_struct.m_source)), "\n"));
     doc_struct.body{end}.lines = [1, length(doc_struct.m_source)];
-    doc_struct.body{end}.output = [];
+    doc_struct.body{end}.output = {};
     return;
   endif
 
@@ -483,7 +483,7 @@ function doc_struct = parse_m_source (doc_struct)
       doc_struct.body{end}.content = strtrim (strjoin (...
         doc_struct.m_source(lines(1):lines(2)), "\n"));
       doc_struct.body{end}.lines = lines;
-      doc_struct.body{end}.output = [];
+      doc_struct.body{end}.output = {};
       j++;
     endwhile
 
