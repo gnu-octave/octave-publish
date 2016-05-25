@@ -457,8 +457,9 @@ function doc_struct = parse_m_source (doc_struct)
   ##   1. First paragraph must start in first line
   ##   2. Second paragraph must start before any code
   title_offset = 0;
-  # TODO: is_head??
-  if ((! isempty (par_start_idx)) && (par_start_idx(1) == 1) ...
+  if ((is_head (doc_struct.m_source{1})) ...
+      && (! isempty (par_start_idx))
+      && (par_start_idx(1) == 1) ...
       && ((isempty (code_start_idx))
           || ((length (par_start_idx) > 1)
               && (par_start_idx(2) < code_start_idx(1)))))
@@ -703,7 +704,7 @@ function ofile = create_output (doc_struct, options)
   ## Use title, or if not given the m-file name
   title_str = doc_struct.title;
   if (isempty (title_str))
-    title_str = doc_struct.m_source_file_name;
+    [~,title_str] = fileparts (doc_struct.m_source_file_name);
   endif
 
   content = formatter ("header", title_str, ...
@@ -724,7 +725,9 @@ function ofile = create_output (doc_struct, options)
   if (strcmp (options.format, "pdf"))
     [status, ~] = system ("pdflatex --version");
     if (status == 0)
-      system (["cd ", options.outputDir," && pdflatex ", ofile_name]);
+      for i = 1:2
+        system (["cd ", options.outputDir," && pdflatex ", ofile_name]);
+      endfor
     endif
   endif
 endfunction
@@ -732,7 +735,7 @@ endfunction
 
 
 function toc_cstr = get_toc (cstr)
-  ## TOC_CSTR extracts the table of contents from a cellstring (e.g.
+  ## GET_TOC extracts the table of contents from a cellstring (e.g.
   ##   doc_struct.body) with each section headline as a cell in a returned
   ##   cellstring.
   ##
