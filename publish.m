@@ -56,7 +56,7 @@
 ##
 ## With only @var{filename} given, a HTML report is generated in a
 ## subdirectory @samp{html} relative to the current working directory.
-## The Octave commands are evaluated in the current context and any
+## The Octave commands are evaluated in a seperate context and any
 ## figures created while executing the script file are included in the
 ## report.  All formatting syntax of @var{filename} is treated according
 ## to the specified output format and included in the report.
@@ -859,7 +859,12 @@ function doc_struct = eval_code (doc_struct, options)
         if (isempty (get (fig_ids_new(j), "children")))
           continue;
         endif
-        fname = [fig_name, "-", num2str(fig_num), ".", options.imageFormat];
+        fname = [fig_name, "-", num2str(fig_num), "."];
+        if (strncmp (options.imageFormat, "eps", 3))
+          fname = [fname, "eps"];
+        else
+          fname = [fname, options.imageFormat];
+        endif
         print_opts = {fig_ids_new(j), ...
           [options.outputDir, filesep(), fname], ...
           ["-d", options.imageFormat], "-color"};
