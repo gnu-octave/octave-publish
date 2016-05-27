@@ -37,7 +37,7 @@
 ## %
 ## % Some *bold*, _italic_, or |monospaced| Text with
 ## % a <http://www.octave.org link to GNU Octave>.
-## %
+## %%
 ##
 ## # "Real" Octave commands to be evaluated
 ## sombrero ()
@@ -950,3 +950,13 @@ endfunction
 %! for i = 1:length(cases)-1
 %!   publish (cases{i});
 %! endfor
+%! confirm_recursive_rmdir (false, "local");
+%! rmdir ("html", "s");
+
+%!# Test bad function calls
+%!
+%!error publish ()
+%!error publish (1)
+%!error publish ("non_existing_file.m")
+%!error publish ("test_script.m", "format", "html", "showCode")
+%!error [str1, str2] = publish ("test_script.m")

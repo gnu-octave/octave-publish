@@ -2,7 +2,7 @@
 %
 % Some *bold*, _italic_, or |monospaced| Text with
 % a <http://www.octave.org link to GNU Octave>.
-%
+%%
 
 # "Real" Octave commands to be evaluated
 sombrero ()
