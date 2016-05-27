@@ -139,7 +139,7 @@ plot (x,y)
 #
 
 %% External File Content
-% 
+%
 % <include>test_script_code_only.m</include>
 %
 
@@ -150,12 +150,12 @@ plot (x,y)
 
 %% External Graphic
 %
-% <<myGraphic.png>>
+% <<test_script-1.png>>
 %
 
 ## External Graphic
 #
-# <<myGraphic.png>>
+# <<test_script-1.png>>
 #
 
 %% Inline LaTeX
