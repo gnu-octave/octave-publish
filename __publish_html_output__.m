@@ -284,7 +284,7 @@ function outstr = syntax_highlight (str)
   kwords = iskeyword ();
   for i = 1:length(kwords)
     outstr = regexprep (outstr, ...
-      ['(?!<span[^>]*?>)(\s', kwords{i},'\s)(?![^<]*?<\/span>)'], ...
-      ["<span class=\"keyword\">$1</span>"]);
+      ['(?!<span[^>]*?>)(\s|^)(', kwords{i},')(\s|$)(?![^<]*?<\/span>)'], ...
+      ["$1<span class=\"keyword\">$2</span>$3"]);
   endfor
 endfunction
