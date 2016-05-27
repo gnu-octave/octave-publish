@@ -203,7 +203,7 @@ function output_file = publish (file, varargin)
   elseif ((rem (numel (varargin), 2) == 0) ...
           && (all (cellfun (@ischar, varargin))))
     for i = 1:2:numel(varargin)
-      setfield (options, varargin{i}, varargin{i + 1});
+      options = setfield (options, varargin{i}, varargin{i + 1});
     endfor
   else
     error ("publish: Invalid or inappropriate arguments.");
@@ -474,10 +474,13 @@ function doc_struct = parse_m_source (doc_struct)
 
   ## Add non-empty paragraphs and code to doc_struct
   j = 1;
-  for i = (1 + title_offset):length(par_start_idx)
-    ## Add code first
+  i = (1 + title_offset);
+  while ((i <= length(par_start_idx)) || (j <= length(code_start_idx)))
+    ## Add code while there is code left
+    ##   and code is before the next paragraph or there are no more paragraphs
     while ((j <= length(code_start_idx))
-      && (par_start_idx(i) > code_start_idx(j)))
+           && ((i > length(par_start_idx))
+               || (par_start_idx(i) > code_start_idx(j))))
       doc_struct.body{end + 1}.type = "code";
       lines = [code_start_idx(j), code_end_idx(j)];
       doc_struct.body{end}.content = strtrim (strjoin (...
@@ -487,25 +490,28 @@ function doc_struct = parse_m_source (doc_struct)
       j++;
     endwhile
 
-    type_str = "section";
-    title_str = doc_struct.m_source{par_start_idx(i)};
-    if (is_head (doc_struct.m_source(par_start_idx(i))))
-      title_str = title_str(4:end);
-    else
-      type_str = "section_no_break";
-      title_str = title_str(5:end);
-    endif
-    ## Append, if paragraph title is given
-    if (! isempty (title_str))
-      doc_struct.body{end + 1}.type = type_str;
-      doc_struct.body{end}.content = title_str;
-    endif
+    if (i <= length(par_start_idx))
+      type_str = "section";
+      title_str = doc_struct.m_source{par_start_idx(i)};
+      if (is_head (doc_struct.m_source(par_start_idx(i))))
+        title_str = title_str(4:end);
+      else
+        type_str = "section_no_break";
+        title_str = title_str(5:end);
+      endif
+      ## Append, if paragraph title is given
+      if (! isempty (title_str))
+        doc_struct.body{end + 1}.type = type_str;
+        doc_struct.body{end}.content = title_str;
+      endif
 
-    content = doc_struct.m_source(par_start_idx(i) + 1:par_end_idx(i));
-    ## Strip leading "# "
-    content = cellfun(@(c) cellstr (c(3:end)), content);
-    doc_struct.body = [doc_struct.body, parse_paragraph_content(content)];
-  endfor
+      content = doc_struct.m_source(par_start_idx(i) + 1:par_end_idx(i));
+      ## Strip leading "# "
+      content = cellfun(@(c) cellstr (c(3:end)), content);
+      doc_struct.body = [doc_struct.body, parse_paragraph_content(content)];
+      i++;
+    endif
+  endwhile
 endfunction
 
 
@@ -844,8 +850,8 @@ function doc_struct = eval_code (doc_struct, options)
         try
           doc_struct.body{i}.output = eval_code_helper (code_str);
          catch err
-          doc_struct.body{i}.output = ["error: ", err.message, ...
-            "\n\tin:\n\n", code_str];
+          doc_struct.body{i}.output = cellstr (["error: ", err.message, ...
+            "\n\tin:\n\n", code_str]);
         end_try_catch
       else
         doc_struct.body{i}.output = eval_code_helper (code_str);
