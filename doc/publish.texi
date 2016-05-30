@@ -1,0 +1,210 @@
+% Copyright (C) 2016 Kai T. Ohlhus
+%
+% This file is part of Octave.
+%
+% Octave is free software; you can redistribute it and/or modify it
+% under the terms of the GNU General Public License as published by the
+% Free Software Foundation; either version 3 of the License, or (at
+% your option) any later version.
+%
+% Octave is distributed in the hope that it will be useful, but WITHOUT
+% ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+% FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+% for more details.
+%
+% You should have received a copy of the GNU General Public License
+% along with Octave; see the file COPYING.  If not, see
+% <http://www.gnu.org/licenses/>.
+
+\input texinfo
+
+@documentencoding UTF-8
+
+@setfilename publish.info
+
+@settitle GNU Octave - publish
+
+@node Top
+@top Publishing code with GNU Octave
+
+@menu
+* Publishing Markup::
+@end menu
+
+@node Publishing Markup
+@chapter Publishing Markup
+
+@menu
+* Using Publishing Markup in script files::
+* Text formatting::
+* Sections::
+* Preformatted code::
+* Preformatted text::
+* Bulleted lists::
+* Numbered lists::
+* Including file content::
+* Including graphics::
+* Including URLs::
+* HTML markup::
+* LaTeX markup::
+@end menu
+
+@node Using Publishing Markup in script files
+@section Using Publishing Markup in script files
+
+To use Publishing Markup, start by typing @samp{##} or @samp{%%} at the
+beginnging of a new line.  For Matlab compatibility three repetitions of
+@samp{#} or @samp{%} are treated the same way as two repetitions.
+
+The lines following @samp{##} or @samp{%%} start with only character of
+@samp{#} or @samp{%} followed by at least one space and are interpreted as
+paragraph, until the first line does not start with @samp{#} or @samp{%} or
+the end of the document is reached.
+
+A paragraph starting in the first line of the document, followed by another
+start of a paragraph, that might be empty, is interpreted as a document
+title and introduction text.
+
+See the example below for clarity:
+
+@example
+@group
+%% Headline title
+%
+% Some *bold*, _italic_, or |monospaced| Text with
+% a <http://www.octave.org link to GNU Octave>.
+%%
+
+# "Real" Octave commands to be evaluated
+sombrero ()
+
+## Octave comment style supported as well
+#
+# * Bulleted list item 1
+# * Bulleted list item 2
+#
+# # Numbered list item 1
+# # Numbered list item 2
+@end group
+@end example
+
+@node Text formatting
+@section Text formatting
+
+Basic text formatting is supported inside paragraphs, see the example
+given below:
+
+@example
+@group
+##
+# @b{*bold*}, @i{_italic_}, or |monospaced| Text
+@end group
+@end example
+
+Additionally trademark symbols are interpreted, just embrace the letters
+@samp{TM} or @samp{R}.
+
+@example
+@group
+##
+# (TM) or (R)
+@end group
+@end example
+
+@node Sections
+@section Sections
+
+A section is started by typing @samp{##} or @samp{%%} at the beginnging of
+a new line followed by at least one space and a section title, which are all
+characters until a line-break.  Without a section title, the paragraph is
+interpreted as a continuation of the previous section.  For Matlab
+compatibility three repetitions of @samp{#} or @samp{%} are treated the same
+way as two repetitions.
+
+@example
+@group
+some_code ();
+
+## Section 1
+#
+## Section 2
+
+some_code ();
+
+##
+# Still in section 2
+
+some_code ();
+
+### Section 3
+#
+#
+@end group
+@end example
+
+@node Preformatted code
+@section Preformatted code
+
+To write preformatted code inside a paragraph, indent the code by three
+spaces after @samp{#} at the beginning of each line and leave the lines
+above and below the code free, except for @samp{#} at the beginning of
+those lines.
+
+@example
+@group
+##
+# This is a syntax highligthed for-loop.
+#
+#   for i = 1:5
+#     disp (i);
+#   endfor
+@end group
+@end example
+
+@node Preformatted text
+@section Preformatted text
+
+To write preformatted text inside a paragraph, indent the code by two
+spaces after @samp{#} at the beginning of each line and leave the lines
+above and below the preformatted text free, except for @samp{#} at the
+beginning of those lines.
+
+@example
+@group
+##
+# This following text is preformatted:
+#
+#  "To be, or not to be: that is the question:
+#  Whether 'tis nobler in the mind to suffer
+#  The slings and arrows of outrageous fortune,
+#  Or to take arms against a sea of troubles,
+#  And by opposing end them? To die: to sleep;"
+#  
+#  --"Hamlet" by W. Shakespeare
+@end group
+@end example
+
+@node Bulleted lists
+@section Bulleted lists
+
+@node Numbered lists
+@section Numbered lists
+
+@node Including file content
+@section Including file content
+
+@node Including graphics
+@section Including graphics
+
+@node Including URLs
+@section Including URLs
+
+@node HTML markup
+@section HTML markup
+
+@node LaTeX markup
+@section LaTeX markup
+
+
+@bye
+
