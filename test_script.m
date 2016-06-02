@@ -12,13 +12,14 @@ disp ("First recognized Octave code after %%")
 % DESCRIPTIVE TEXT
 
 %%% SECTION TITLE WITHOUT SECTION BREAK
-% DESCRIPTIVE TEXT
+% For Matlab compatibility
 
 ## SECTION TITLE
 # DESCRIPTIVE TEXT
 
 ### SECTION TITLE WITHOUT SECTION BREAK
-# DESCRIPTIVE TEXT
+# Should not work in Octave style
+# and should be interpreted as usual Octave code
 
 %%
 %

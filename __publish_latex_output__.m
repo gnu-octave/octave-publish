@@ -7,7 +7,6 @@ function outstr = __publish_latex_output__ (varargin)
   ## * "code" (str)
   ## * "code_output" (str)
   ## * "section" (str)
-  ## * "section_no_break" (str)
   ## * "preformatted_code" (str)
   ## * "preformatted_text" (str)
   ## * "bulleted_list" (cstr)
@@ -84,11 +83,6 @@ function outstr = handle_section (str)
   outstr = ["\n\n\\phantomsection\n", ...
     "\\addcontentsline{toc}{section}{", str, "}\n", ...
     "\\subsection*{", str, "}\n\n"];
-endfunction
-
-function outstr = handle_section_no_break (str)
-  ## Note: Matlab R2016a treats both as new section heads
-  outstr = handle_section (str);
 endfunction
 
 function outstr = handle_preformatted_code (str)

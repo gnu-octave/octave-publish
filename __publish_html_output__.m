@@ -7,7 +7,6 @@ function outstr = __publish_html_output__ (varargin)
   ## * "code" (str)
   ## * "code_output" (str)
   ## * "section" (str)
-  ## * "section_no_break" (str)
   ## * "preformatted_code" (str)
   ## * "preformatted_text" (str)
   ## * "bulleted_list" (cstr)
@@ -135,11 +134,6 @@ function outstr = handle_section (varargin)
   outstr = ["<h2><a id=\"node", num2str(counter), "\">", varargin{1}, ...
     "</a></h2>"];
   counter++;
-endfunction
-
-function outstr = handle_section_no_break (str)
-  ## Note: Matlab R2016a treats both as new section heads
-  outstr = handle_section (str);
 endfunction
 
 function outstr = handle_preformatted_code (str)
