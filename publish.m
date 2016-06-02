@@ -375,8 +375,6 @@ function doc_struct = parse_m_source (doc_struct)
   ##                 "output", [])}
   ##     b) {struct ("type", "section", ...
   ##                 "content", title_str)}
-  ##     c) {struct ("type", "section_no_break", ...
-  ##                 "content", title_str)}
   ##
   ##   Second parsing level is invoked for the paragraph contents, resulting
   ##   in more elements for doc_struct.body.
@@ -392,16 +390,17 @@ function doc_struct = parse_m_source (doc_struct)
   ## Checks line to have N "%" or "#" lines
   ## followed either by a space or is end of string
   is_publish_markup = @(cstr, N) ...
-    any (strncmp (char (cstr), {"%%%", "###"}, N)) ...
+    any (strncmp (char (cstr), {"%%%", "##"}, N)) ...
     && ((length (char (cstr)) == N) || ((char (cstr))(N + 1) == " "));
   ## Checks line of cellstring to be a paragraph line
   is_paragraph = @(cstr) is_publish_markup (cstr, 1);
   ## Checks line of cellstring to be a section headline
   is_head = @(cstr) is_publish_markup (cstr, 2);
-  ## Checks line of cellstring to be a headline without section break
+  ## Checks line of cellstring to be a headline without section break, using
+  ## the cell mode in Matlab (for compatibility), just treated as a new head.
   is_no_break_head = @(cstr) is_publish_markup (cstr, 3);
 
-  ## Find the indices of paragraphs starting with "%%", "##", "%%%", or "###"
+  ## Find the indices of paragraphs starting with "%%", "##", or "%%%"
   par_start_idx = find ( ...
     cellfun (is_head, doc_struct.m_source) ...
     | cellfun (is_no_break_head, doc_struct.m_source));
@@ -496,7 +495,6 @@ function doc_struct = parse_m_source (doc_struct)
       if (is_head (doc_struct.m_source(par_start_idx(i))))
         title_str = title_str(4:end);
       else
-        type_str = "section_no_break";
         title_str = title_str(5:end);
       endif
       ## Append, if paragraph title is given
@@ -747,7 +745,7 @@ function toc_cstr = get_toc (cstr)
   ##
   toc_cstr = cell ();
   for i = 1:length(cstr)
-    if (any (strcmp (cstr{i}.type, {"section", "section_no_break"})))
+    if (strcmp (cstr{i}.type, "section"))
       toc_cstr{end + 1} = cstr{i}.content;
     endif
   endfor
