@@ -118,8 +118,7 @@ A section is started by typing @samp{##} or @samp{%%} at the beginnging of
 a new line followed by at least one space and a section title, which are all
 characters until a line-break.  Without a section title, the paragraph is
 interpreted as a continuation of the previous section.  For Matlab
-compatibility three repetitions of @samp{#} or @samp{%} are treated the same
-way as two repetitions.
+compatibility @samp{%%%} is treated the same way as @samp{%%}.
 
 @example
 @group
