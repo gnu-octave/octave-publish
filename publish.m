@@ -832,8 +832,11 @@ function doc_struct = eval_code (doc_struct, options)
   fig_num = 1;
   fig_list = struct ();
 
+  ## mat-file used as temporary context
+  tmp_context = [tempname(), ".mat"];
+
   ## Evaluate code, that does not appear in the output.
-  eval_code_helper (options.codeToEvaluate);
+  eval_code_helper (tmp_context, options.codeToEvaluate);
 
   ## Create a new figure, if there are existing plots
   if (! isempty (fig_ids) && options.useNewFigure)
@@ -846,13 +849,13 @@ function doc_struct = eval_code (doc_struct, options)
       code_str = strjoin (doc_struct.m_source(r(1):r(2)), "\n");
       if (options.catchError)
         try
-          doc_struct.body{i}.output = eval_code_helper (code_str);
+          doc_struct.body{i}.output = eval_code_helper (tmp_context, code_str);
          catch err
           doc_struct.body{i}.output = cellstr (["error: ", err.message, ...
             "\n\tin:\n\n", code_str]);
         end_try_catch
       else
-        doc_struct.body{i}.output = eval_code_helper (code_str);
+        doc_struct.body{i}.output = eval_code_helper (tmp_context, code_str);
       endif
 
       ## Check for newly created figures ...
@@ -907,6 +910,9 @@ function doc_struct = eval_code (doc_struct, options)
   ## Close any by publish opened figures
   delete (setdiff (findall (0, "type", "figure"), fig_ids));
 
+  ## Remove temporary context
+  unlink (tmp_context);
+
   ## Insert figures to document
   fig_code_blocks = fieldnames (fig_list);
   body_offset = 0;
@@ -921,14 +927,13 @@ endfunction
 
 
 
-function ___cstr___ = eval_code_helper (___code___);
+function ___cstr___ = eval_code_helper (___context___, ___code___);
   ## EVAL_CODE_HELPER evaluates a given string with Octave code in an extra
   ##   temporary context and returns a cellstring with the eval output
 
   ## TODO: potential conflicting variables sourrounded by "___"
   ##       better solution?
   ## TODO: suppres any eval output
-  persistent ___context___ = [tempname(), ".mat"];
   if (isempty (___code___))
     return;
   endif

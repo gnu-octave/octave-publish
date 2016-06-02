@@ -5,5 +5,8 @@ Create a Matlab compatible
 and [grabcode](https://www.mathworks.com/help/matlab/ref/grabcode.html)
 function.
 
+The [documentation](https://rawgit.com/siko1056/octave-publish/master/doc/publish.html)
+is under construction.
+
 The initial version is available from the
 [Octave-forge package "miscellaneous"]( http://octave.sourceforge.net/miscellaneous/function/publish.html).
