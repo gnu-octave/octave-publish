@@ -209,12 +209,11 @@ function outstr = syntax_highlight (str)
   i = 1;
   while (i <= length(str))
     ## Block comment
-    if (strncmp (str(i:end), "%{", 2) || strncmp (str(i:end), "#{", 2))
+    if (any (strncmp (str(i:end), {"%{", "#{"}, 2)))
       outstr = [outstr, "<span class=\"comment\">", str(i:i+1)];
       i = i + 2;
       while ((i <= length(str)) ...
-             && ! (strncmp (str(i:end), "%}", 2) ...
-                   || strncmp (str(i:end), "#}", 2)))
+             && ! (any (strncmp (str(i:end), {"%}", "#}"}, 2))))
         outstr = [outstr, str(i)];
         i++;
       endwhile
@@ -225,7 +224,7 @@ function outstr = syntax_highlight (str)
         outstr = [outstr, "</span>"];
       endif
     ## Line comment
-    elseif (strcmp (str(i), "%") || strcmp (str(i), "#"))
+    elseif (any (strcmp (str(i), {"%", "#"})))
       outstr = [outstr, "<span class=\"comment\">"];
       while ((i <= length(str)) && (! strcmp (str(i), "\n")))
         outstr = [outstr, str(i)];
