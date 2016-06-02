@@ -1,5 +1,6 @@
 %% Headline
-% Headline description.
+% Headline description with a link
+% <https://www.gnu.org/software/octave |*GNU Octave*| Homepage>
 %
 % Spanning some lines and blanks.
 %
@@ -61,6 +62,13 @@ y = cos(x)
 % Trademarks:
 % TEXT(TM)
 % TEXT(R)
+%
+% Good inlining shoud work
+% *BOLD _ITALIC |MONOSPACED| TEXT_*
+% _ITALIC *BOLD |MONOSPACED| TEXT*_
+% |MONOSPACED *BOLD _ITALIC_ TEXT*|
+%
+% Bad inlining should not work |MONOSPACED *BOLD TEXT|*
 
 % figure code
 plot (x,y)
@@ -77,6 +85,13 @@ plot (y,x)
 # Trademarks:
 # TEXT(TM)
 # TEXT(R)
+#
+# Good inlining shoud work
+# *BOLD _ITALIC |MONOSPACED| TEXT_*
+# _ITALIC *BOLD |MONOSPACED| TEXT*_
+# |MONOSPACED *BOLD _ITALIC_ TEXT*|
+#
+# Bad inlining should not work |MONOSPACED *BOLD TEXT|*
 
 % again another plot
 plot (x,y)
@@ -175,28 +190,36 @@ plot (x,y)
 % <https://www.gnu.org/software/octave>
 % <https://www.gnu.org/software/octave GNU Octave Homepage>
 % <octave:FUNCTION DISPLAYED TEXT>
+% <octave:FUNCTION Nested markup and newline
+% PLAIN TEXT(TM) _ITALIC TEXT_(R) *BOLD TEXT* |MONOSPACED TEXT|>
+% <https://www.gnu.org/software/octave Nested markup and newline
+% PLAIN TEXT(TM) _ITALIC TEXT_(R) *BOLD TEXT* |MONOSPACED TEXT|>
 %
 
 ## Links
 # <https://www.gnu.org/software/octave>
 # <https://www.gnu.org/software/octave GNU Octave Homepage>
 # <octave:FUNCTION DISPLAYED TEXT>
+# <octave:FUNCTION Nested markup and newline
+# PLAIN TEXT(TM) _ITALIC TEXT_(R) *BOLD TEXT* |MONOSPACED TEXT|>
+# <https://www.gnu.org/software/octave Nested markup and newline
+# PLAIN TEXT(TM) _ITALIC TEXT_(R) *BOLD TEXT* |MONOSPACED TEXT|>
 #
 
 %% HTML Markup
 % <html>
-% <table border=1><tr>
-% <td>one</td>
-% <td>two</td></tr></table>
+% <table><tr>
+% <td style="border: 1px solid black;">one</td>
+% <td style="border: 1px solid black;">two</td></tr></table>
 % </html>
 %
 
 ## HTML Markup
 # <html>
-# <table border=1>
+# <table>
 # <tr>
-# <td>one</td>
-# <td>two</td>
+# <td style="border: 1px solid black;">one</td>
+# <td style="border: 1px solid black;">two</td>
 # </tr>
 # </table>
 # </html>

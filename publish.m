@@ -36,7 +36,7 @@
 ## %% Headline title
 ## %
 ## % Some *bold*, _italic_, or |monospaced| Text with
-## % a <http://www.octave.org link to GNU Octave>.
+## % a <http://www.octave.org link to *GNU Octave*>.
 ## %%
 ##
 ## # "Real" Octave commands to be evaluated
@@ -797,18 +797,23 @@ function str = format_text (str, formatter)
     formatter ("link", "$1", "$1"));
   ## Links "<octave:Function TEXT>"
   ## TODO: better pointer to the function documentation
-  str = regexprep (str, '<octave:([^\s<>]*) *([^<>$\n]*)>', ...
+  str = regexprep (str, '<octave:([^\s<>]*) *([^<>$]*)>', ...
     formatter ("link", ["https://www.gnu.org/software/octave/", ...
       "doc/interpreter/Function-Index.html"], "$2"));
   ## Links "<http://www.someurl.com TEXT>"
-  str = regexprep (str, '<(\S{3,}[^\s<>]*) *([^<>$\n]*)>', ...
+  str = regexprep (str, '<(\S{3,}[^\s<>]*) *([^<>$]*)>', ...
     formatter ("link", "$1", "$2"));
-  ## Bold
-  str = regexprep (str, '\*([^*$]*)\*', formatter ("bold", "$1"));
-  ## Italic
-  str = regexprep (str, '_([^_$]*)_', formatter ("italic", "$1"));
-  ## Monospaced
-  str = regexprep (str, '\|([^|$]*)\|', formatter ("monospaced", "$1"));
+  oldstr = str;
+  ## Loop because of inlined expressions, e.g. *BOLD _ITALIC_*
+  do
+    oldstr = str;
+    ## Bold
+    str = regexprep (str, '\*([^*$_|]*)\*', formatter ("bold", "$1"));
+    ## Italic
+    str = regexprep (str, '_([^_$|*]*)_', formatter ("italic", "$1"));
+    ## Monospaced
+    str = regexprep (str, '\|([^|$_*]*)\|', formatter ("monospaced", "$1"));
+  until (strcmp (str, oldstr))
   ## Replace special symbols
   str = strrep (str, "(TM)", formatter("TM"));
   str = strrep (str, "(R)", formatter("R"));
