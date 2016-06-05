@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html401/loose.dtd">
 <html>
-<!-- Created on May 30, 2016 by texi2html 1.82
+<!-- Created on June 5, 2016 by texi2html 1.82
 texi2html was written by: 
             Lionel Cons <Lionel.Cons@cern.ch> (original author)
             Karl Berry  <karl@freefriends.org>
@@ -56,6 +56,8 @@ ul.toc {list-style: none}
 </td></tr>
 </table>
 
+
+
 <hr size="1">
 <a name="Publishing-Markup"></a>
 <table cellpadding="1" cellspacing="1" border="0">
@@ -98,11 +100,15 @@ ul.toc {list-style: none}
 </td></tr>
 <tr><td align="left" valign="top"><a href="#Including-URLs">1.10 Including URLs</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top"><a href="#HTML-markup">1.11 HTML markup</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top"><a href="#Mathematical-equations">1.11 Mathematical equations</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top"><a href="#LaTeX-markup">1.12 LaTeX markup</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top"><a href="#HTML-markup">1.12 HTML markup</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top"><a href="#LaTeX-markup">1.13 LaTeX markup</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
 </table>
+
+
 
 <hr size="6">
 <a name="Using-Publishing-Markup-in-script-files"></a>
@@ -126,7 +132,7 @@ ul.toc {list-style: none}
 <h2 class="section">1.1 Using Publishing Markup in script files</h2>
 
 <p>To use Publishing Markup, start by typing &lsquo;<samp>##</samp>&rsquo; or &lsquo;<samp>%%</samp>&rsquo; at the
-beginnging of a new line.  For Matlab compatibility three repetitions of
+beginning of a new line.  For Matlab compatibility three repetitions of
 &lsquo;<samp>#</samp>&rsquo; or &lsquo;<samp>%</samp>&rsquo; are treated the same way as two repetitions.
 </p>
 <p>The lines following &lsquo;<samp>##</samp>&rsquo; or &lsquo;<samp>%%</samp>&rsquo; start with only character of
@@ -157,6 +163,8 @@ sombrero ()
 # # Numbered list item 1
 # # Numbered list item 2
 </pre></td></tr></table>
+
+
 
 <hr size="6">
 <a name="Text-formatting"></a>
@@ -193,6 +201,8 @@ given below:
 # (TM) or (R)
 </pre></td></tr></table>
 
+
+
 <hr size="6">
 <a name="Sections"></a>
 <table cellpadding="1" cellspacing="1" border="0">
@@ -214,7 +224,7 @@ given below:
 <a name="Sections-1"></a>
 <h2 class="section">1.3 Sections</h2>
 
-<p>A section is started by typing &lsquo;<samp>##</samp>&rsquo; or &lsquo;<samp>%%</samp>&rsquo; at the beginnging of
+<p>A section is started by typing &lsquo;<samp>##</samp>&rsquo; or &lsquo;<samp>%%</samp>&rsquo; at the beginning of
 a new line followed by at least one space and a section title, which are all
 characters until a line-break.  Without a section title, the paragraph is
 interpreted as a continuation of the previous section.  For Matlab
@@ -238,6 +248,8 @@ some_code ();
 #
 #
 </pre></td></tr></table>
+
+
 
 <hr size="6">
 <a name="Preformatted-code"></a>
@@ -266,12 +278,16 @@ above and below the code free, except for &lsquo;<samp>#</samp>&rsquo; at the be
 those lines.
 </p>
 <table><tr><td>&nbsp;</td><td><pre class="example">##
-# This is a syntax highligthed for-loop.
+# This is a syntax highlighted for-loop:
 #
 #   for i = 1:5
 #     disp (i);
 #   endfor
+#
+# And more usual text.
 </pre></td></tr></table>
+
+
 
 <hr size="6">
 <a name="Preformatted-text"></a>
@@ -307,9 +323,11 @@ beginning of those lines.
 #  The slings and arrows of outrageous fortune,
 #  Or to take arms against a sea of troubles,
 #  And by opposing end them? To die: to sleep;&quot;
-#  
+#
 #  --&quot;Hamlet&quot; by W. Shakespeare
 </pre></td></tr></table>
+
+
 
 <hr size="6">
 <a name="Bulleted-lists"></a>
@@ -332,6 +350,27 @@ beginning of those lines.
 <a name="Bulleted-lists-1"></a>
 <h2 class="section">1.6 Bulleted lists</h2>
 
+<p>To create a bulleted list, type
+</p>
+<table><tr><td>&nbsp;</td><td><pre class="example">##
+#
+# * Bulleted list item 1
+# * Bulleted list item 2
+#
+</pre></td></tr></table>
+
+<p>to get output like
+</p>
+<ul>
+<li> Bulleted list item 1
+</li><li> Bulleted list item 2
+</li></ul>
+
+<p>Notice the blank lines, except for the &lsquo;<samp>#</samp>&rsquo; or &lsquo;<samp>%</samp>&rsquo; before and
+after the bulleted list!
+</p>
+
+
 <hr size="6">
 <a name="Numbered-lists"></a>
 <table cellpadding="1" cellspacing="1" border="0">
@@ -352,6 +391,27 @@ beginning of those lines.
 </tr></table>
 <a name="Numbered-lists-1"></a>
 <h2 class="section">1.7 Numbered lists</h2>
+
+<p>To create a numbered list, type
+</p>
+<table><tr><td>&nbsp;</td><td><pre class="example">##
+#
+# # Numbered list item 1
+# # Numbered list item 2
+#
+</pre></td></tr></table>
+
+<p>to get output like
+</p>
+<ol>
+<li> Numbered list item 1
+</li><li> Numbered list item 2
+</li></ol>
+
+<p>Notice the blank lines, except for the &lsquo;<samp>#</samp>&rsquo; or &lsquo;<samp>%</samp>&rsquo; before and
+after the numbered list!
+</p>
+
 
 <hr size="6">
 <a name="Including-file-content"></a>
@@ -374,6 +434,24 @@ beginning of those lines.
 <a name="Including-file-content-1"></a>
 <h2 class="section">1.8 Including file content</h2>
 
+<p>To include the content of an external file, e.g. a file called
+&lsquo;<samp>my_function.m</samp>&rsquo; at the same location as the published Octave script,
+use the following syntax to include it with Octave syntax highlighting.
+</p>
+<p>Alternatively, you can write the full or relative path to the file.
+</p>
+<table><tr><td>&nbsp;</td><td><pre class="example">##
+#
+# &lt;include&gt;my_function.m&lt;/include&gt;
+#
+# &lt;include&gt;/full/path/to/my_function.m&lt;/include&gt;
+#
+# &lt;include&gt;../relative/path/to/my_function.m&lt;/include&gt;
+#
+</pre></td></tr></table>
+
+
+
 <hr size="6">
 <a name="Including-graphics"></a>
 <table cellpadding="1" cellspacing="1" border="0">
@@ -395,11 +473,28 @@ beginning of those lines.
 <a name="Including-graphics-1"></a>
 <h2 class="section">1.9 Including graphics</h2>
 
+<p>To include external graphics, e.g. a graphic called &lsquo;<samp>my_graphic.png</samp>&rsquo;
+at the same location as the published Octave script, use the following syntax.
+</p>
+<p>Alternatively, you can write the full path to the graphic.
+</p>
+<table><tr><td>&nbsp;</td><td><pre class="example">##
+#
+# &lt;&lt;my_graphic.png&gt;&gt;
+#
+# &lt;&lt;/full/path/to/my_graphic.png&gt;&gt;
+#
+# &lt;&lt;../relative/path/to/my_graphic.png&gt;&gt;
+#
+</pre></td></tr></table>
+
+
+
 <hr size="6">
 <a name="Including-URLs"></a>
 <table cellpadding="1" cellspacing="1" border="0">
 <tr><td valign="middle" align="left">[<a href="#Including-graphics" title="Previous section in reading order"> &lt; </a>]</td>
-<td valign="middle" align="left">[<a href="#HTML-markup" title="Next section in reading order"> &gt; </a>]</td>
+<td valign="middle" align="left">[<a href="#Mathematical-equations" title="Next section in reading order"> &gt; </a>]</td>
 <td valign="middle" align="left"> &nbsp; </td>
 <td valign="middle" align="left">[<a href="#Publishing-Markup" title="Beginning of this chapter or previous chapter"> &lt;&lt; </a>]</td>
 <td valign="middle" align="left">[<a href="#Publishing-Markup" title="Up section"> Up </a>]</td>
@@ -416,10 +511,68 @@ beginning of those lines.
 <a name="Including-URLs-1"></a>
 <h2 class="section">1.10 Including URLs</h2>
 
+<p>Basically, a URL is written between an opening &lsquo;<samp>&lt;</samp>&rsquo; and a closing &lsquo;<samp>&gt;</samp>&rsquo;
+angle.
+</p>
+<table><tr><td>&nbsp;</td><td><pre class="example">##
+# &lt;http://www.octave.org&gt;
+</pre></td></tr></table>
+
+<p>Text that is within these angles and separated by at least one space from the
+URL is a displayed text for the link.
+</p>
+<table><tr><td>&nbsp;</td><td><pre class="example">##
+# &lt;http://www.octave.org GNU Octave&gt;
+</pre></td></tr></table>
+
+<p>A link starting with &lsquo;<samp>&lt;octave:</samp>&rsquo; followed by the name of a GNU Octave
+function, optionally with a displayed text, results in a link to the online
+GNU Octave documentations function index.
+</p>
+<table><tr><td>&nbsp;</td><td><pre class="example">##
+# &lt;octave:DISP The display function&gt;
+</pre></td></tr></table>
+
+
+
+<hr size="6">
+<a name="Mathematical-equations"></a>
+<table cellpadding="1" cellspacing="1" border="0">
+<tr><td valign="middle" align="left">[<a href="#Including-URLs" title="Previous section in reading order"> &lt; </a>]</td>
+<td valign="middle" align="left">[<a href="#HTML-markup" title="Next section in reading order"> &gt; </a>]</td>
+<td valign="middle" align="left"> &nbsp; </td>
+<td valign="middle" align="left">[<a href="#Publishing-Markup" title="Beginning of this chapter or previous chapter"> &lt;&lt; </a>]</td>
+<td valign="middle" align="left">[<a href="#Publishing-Markup" title="Up section"> Up </a>]</td>
+<td valign="middle" align="left">[ &gt;&gt; ]</td>
+<td valign="middle" align="left"> &nbsp; </td>
+<td valign="middle" align="left"> &nbsp; </td>
+<td valign="middle" align="left"> &nbsp; </td>
+<td valign="middle" align="left"> &nbsp; </td>
+<td valign="middle" align="left">[<a href="#Top" title="Cover (top) of document">Top</a>]</td>
+<td valign="middle" align="left">[Contents]</td>
+<td valign="middle" align="left">[Index]</td>
+<td valign="middle" align="left">[<a href="#SEC_About" title="About (help)"> ? </a>]</td>
+</tr></table>
+<a name="Mathematical-equations-1"></a>
+<h2 class="section">1.11 Mathematical equations</h2>
+
+<p>One can insert LaTeX inline math, surrounded by single &lsquo;<samp>$</samp>&rsquo; signs, or
+displayed math, surrounded by double &lsquo;<samp>$$</samp>&rsquo; signs, directly inside
+paragraphs.
+</p>
+<table><tr><td>&nbsp;</td><td><pre class="example">##
+# Some shorter inline equation $e^{ix} = \cos x + i\sin x$.
+#
+# Or more complicated formulas as displayed math:
+# $$e^x = \lim_{n\rightarrow\infty}\left(1+\dfrac{x}{n}\right)^{n}.$$
+</pre></td></tr></table>
+
+
+
 <hr size="6">
 <a name="HTML-markup"></a>
 <table cellpadding="1" cellspacing="1" border="0">
-<tr><td valign="middle" align="left">[<a href="#Including-URLs" title="Previous section in reading order"> &lt; </a>]</td>
+<tr><td valign="middle" align="left">[<a href="#Mathematical-equations" title="Previous section in reading order"> &lt; </a>]</td>
 <td valign="middle" align="left">[<a href="#LaTeX-markup" title="Next section in reading order"> &gt; </a>]</td>
 <td valign="middle" align="left"> &nbsp; </td>
 <td valign="middle" align="left">[<a href="#Publishing-Markup" title="Beginning of this chapter or previous chapter"> &lt;&lt; </a>]</td>
@@ -435,7 +588,19 @@ beginning of those lines.
 <td valign="middle" align="left">[<a href="#SEC_About" title="About (help)"> ? </a>]</td>
 </tr></table>
 <a name="HTML-markup-1"></a>
-<h2 class="section">1.11 HTML markup</h2>
+<h2 class="section">1.12 HTML markup</h2>
+
+<p>If the published output is a HTML report, you can insert HTML markup,
+that is only visible in this kind of output.
+</p>
+<table><tr><td>&nbsp;</td><td><pre class="example">##
+# &lt;html&gt;
+# &lt;table style=&quot;border:1px solid black;&quot;&gt;
+# &lt;tr&gt;&lt;td&gt;1&lt;/td&gt;&lt;td&gt;2&lt;/td&gt;&lt;/tr&gt;
+# &lt;tr&gt;&lt;td&gt;3&lt;/td&gt;&lt;td&gt;3&lt;/td&gt;&lt;/tr&gt;
+# &lt;/html&gt;
+</pre></td></tr></table>
+
 
 <hr size="6">
 <a name="LaTeX-markup"></a>
@@ -456,8 +621,19 @@ beginning of those lines.
 <td valign="middle" align="left">[<a href="#SEC_About" title="About (help)"> ? </a>]</td>
 </tr></table>
 <a name="LaTeX-markup-1"></a>
-<h2 class="section">1.12 LaTeX markup</h2>
+<h2 class="section">1.13 LaTeX markup</h2>
 
+<p>If the published output is a LaTeX or PDF report, you can insert LaTeX markup,
+that is only visible in this kind of output.
+</p>
+<table><tr><td>&nbsp;</td><td><pre class="example">##
+# &lt;latex&gt;
+# Some output only visible in \LaTeX or PDF reports.
+# \begin{equation}
+# e^x = \lim\limits_{n\rightarrow\infty}\left(1+\dfrac{x}{n}\right)^{n}
+# \end{equation}
+# &lt;/latex&gt;
+</pre></td></tr></table>
 
 <hr size="6">
 <a name="SEC_About"></a>
@@ -469,7 +645,7 @@ beginning of those lines.
 </tr></table>
 <h1>About This Document</h1>
 <p>
-  This document was generated by <em>siko1056</em> on <em>May 30, 2016</em> using <a href="http://www.nongnu.org/texi2html/"><em>texi2html 1.82</em></a>.
+  This document was generated by <em>siko1056</em> on <em>June 5, 2016</em> using <a href="http://www.nongnu.org/texi2html/"><em>texi2html 1.82</em></a>.
 </p>
 <p>
   The buttons in the navigation panels have the following meaning:
@@ -571,7 +747,7 @@ beginning of those lines.
 <hr size="1">
 <p>
  <font size="-1">
-  This document was generated by <em>siko1056</em> on <em>May 30, 2016</em> using <a href="http://www.nongnu.org/texi2html/"><em>texi2html 1.82</em></a>.
+  This document was generated by <em>siko1056</em> on <em>June 5, 2016</em> using <a href="http://www.nongnu.org/texi2html/"><em>texi2html 1.82</em></a>.
  </font>
  <br>
 
