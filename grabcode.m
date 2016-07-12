@@ -33,8 +33,8 @@
 ## NOTE: You have to save the file at another location with arbitrary name,
 ## otherwise any grabbed code will be lost!
 ##
-## Otherwise if a return value is given, the grabbed code will be returned
-## in string @var{code_str}.
+## With a return value given, the grabbed code will be returned as string
+## @var{code_str}.
 ##
 ## An example:
 ##
@@ -48,6 +48,8 @@
 ## The example above publishes @samp{my_script.m} by default to
 ## @samp{html/my_script.html}.  Afterwards this published Octave script
 ## is grabbed to edit its content in a new temporary file.
+##
+## @seealso{publish}
 ## @end deftypefn
 
 function varargout = grabcode (url)
@@ -108,8 +110,8 @@ endfunction
 %! #       assert (hash ("md5", str1), hash ("md5", str2));
 %! assert (md5sum (str1, true), md5sum (str2, true));
 
-%!# Test bad function calls
-%!
+## Bad function calls
+
 %!error grabcode ()
 %!error grabcode (1)
 %!error grabcode ("html/test_script.html", "pdf")

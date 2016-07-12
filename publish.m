@@ -29,7 +29,7 @@
 ## The generated reports consider Publishing Markup in comments,
 ## which is explained in detail in the GNU Octave manual.  Assume the
 ## following example, using some Publishing Markup, to be the content
-## of a script file @samp{example.m}:
+## of a script file named @samp{example.m}:
 ##
 ## @example
 ## @group
@@ -154,7 +154,7 @@
 ## @item
 ## @samp{codeToEvaluate} --- Octave commands that should be evaluated prior
 ## to publishing the script file.  These Octave commands do not appear in the
-## generated report.  This is useful for publishing function files.
+## generated report.
 ##
 ## @item
 ## @samp{maxOutputLines} --- Maximum number of shown output lines of the
@@ -169,8 +169,10 @@
 ## @samp{true} (default) or @samp{false}
 ## @end itemize
 ##
-## The returned @var{output_file} is a string with the file name of the
-## generated report.
+## The returned @var{output_file} is a string with the path and file name
+## of the generated report.
+##
+## @seealso{grabcode}
 ## @end deftypefn
 
 function output_file = publish (file, varargin)
@@ -181,11 +183,16 @@ function output_file = publish (file, varargin)
     error ("publish: FILE does not exist.");
   endif
 
-  ## Check file extension to be an Octave script
-  [~,~,file_ext] = fileparts (file);
-  if (!strcmp (file_ext, ".m"))
-    error ("publish: Only Octave scripts can be published.");
+  ## Check file extension and for an Octave script
+  [~, file_name, file_ext] = fileparts (file);
+  file_info = __which__ (file_name);
+
+  if ((! strcmp (file_ext, ".m")) || (! strcmp (file_info.type, "script")))
+    error ("publish: Only Octave script files can be published.");
   endif
+
+  ## Check file to be parsable
+  __parse_file__ (file);
 
   ## Get structure with necessary options
   options = struct ();
@@ -967,10 +974,11 @@ endfunction
 %! confirm_recursive_rmdir (false, "local");
 %! rmdir ("html", "s");
 
-%!# Test bad function calls
-%!
+## Bad function calls
+
 %!error publish ()
 %!error publish (1)
 %!error publish ("non_existing_file.m")
+%!error<Only Octave script files can be published> publish ("publish.m")
 %!error publish ("test_script.m", "format", "html", "showCode")
 %!error [str1, str2] = publish ("test_script.m")
