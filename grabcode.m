@@ -106,9 +106,7 @@ endfunction
 %! # Canonicalize strings
 %! str1 = strjoin (deblank (strsplit (str1, "\n")), "\n");
 %! str2 = strjoin (deblank (strsplit (str2, "\n")), "\n");
-%! # TODO: replace in future release with
-%! #       assert (hash ("md5", str1), hash ("md5", str2));
-%! assert (md5sum (str1, true), md5sum (str2, true));
+%! assert (hash ("md5", str1), hash ("md5", str2));
 
 ## Bad function calls
 
