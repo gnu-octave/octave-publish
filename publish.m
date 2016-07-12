@@ -943,9 +943,8 @@ function ___cstr___ = eval_code_helper (___context___, ___code___);
   ## EVAL_CODE_HELPER evaluates a given string with Octave code in an extra
   ##   temporary context and returns a cellstring with the eval output
 
-  ## TODO: potential conflicting variables sourrounded by "___"
-  ##       better solution?
-  ## TODO: suppres any eval output
+  ## TODO: potential conflicting variables sourrounded by "___".  Maybe there
+  ##       is a better solution.
   if (isempty (___code___))
     return;
   endif
@@ -953,13 +952,10 @@ function ___cstr___ = eval_code_helper (___context___, ___code___);
   if (exist (___context___, "file") == 2)
     load (___context___);
   endif
-  ___f___ = tempname ();
-  diary (___f___)
-  eval (___code___);
-  diary off
-  ___cstr___ = read_file_to_cellstr (___f___);
-  unlink (___f___);
-  clear ___code___ ___f___
+
+  ___cstr___ = strsplit (evalc (___code___), "\n");
+
+  clear ___code___
   save (___context___);
 endfunction
 
